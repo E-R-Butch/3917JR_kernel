@@ -11,11 +11,12 @@
 - 已加入最小 `coolpad/` 构建骨架；缺失的私有 OEM 驱动不会伪装成原厂源码。
 - 已保存从实机 `boot_a` 提取的内核配置，以及重建和 DroidSpaces 配置片段。
 - 已启用 PID、UTS、IPC namespace、System V IPC、device cgroup、devtmpfs、veth 等 DroidSpaces 依赖。
+- 已用 Android Clang `r365631c` 和 AArch64 GNU ld 完整编译出 ARM64 `Image`；哈希和配置核验见 [构建验证记录](reconstruction/BUILD_VERIFICATION.md)。
 - 当前产物仍未在真机启动验证，请先阅读 [重建说明](reconstruction/README.zh-CN.md)。
 
 ## 构建
 
-建议使用 Yulong 构建配置对应的 Android Clang `r365631c`：
+建议使用 Yulong 构建配置对应的 Android Clang `r365631c`，并安装 AArch64 GNU binutils（构建脚本调用 `aarch64-linux-gnu-ld`；旧版 `ld.lld` 链接此树时会发生尺寸溢出）：
 
 ```bash
 export TOOLCHAIN=/path/to/clang-r365631c
@@ -33,6 +34,7 @@ export TOOLCHAIN=/path/to/clang-r365631c
 详细来源、恢复方法与已知缺口见：
 
 - [重建与验证说明](reconstruction/README.zh-CN.md)
+- [构建验证记录](reconstruction/BUILD_VERIFICATION.md)
 - [源码来源与许可](reconstruction/SOURCES.md)
 - [配置片段](reconstruction/configs)
 - [恢复补丁记录](reconstruction/patches)

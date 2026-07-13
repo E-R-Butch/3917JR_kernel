@@ -58,4 +58,6 @@ export OUT=/absolute/path/to/out
 4. 确认关键 namespace / cgroup / 网络选项实际为 `y`。
 5. 构建 `Image`，输出最终配置、差异和 SHA-256。
 
+2026-07-14 已在 Linux 区分大小写卷中使用 Android Clang `r365631c` 与 GNU Binutils 2.34 完成全树构建。旧版 `ld.lld` 在此高通 4.19 树的 `MODPOST vmlinux.o` 阶段会把输出尺寸计算溢出，因此脚本固定使用 `aarch64-linux-gnu-ld`。完整产物哈希与选项核验见 [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md)。
+
 在真机验证前，不应把编译成功等同于可以刷入。推荐的下一步是基于原始 `boot_a` ramdisk 和 DTB 生成临时 boot 镜像，核对大小与头部后，仅在用户明确确认时执行 `fastboot boot`；不要直接写入 boot 分区。

@@ -42,13 +42,13 @@ make_args=(
   O="$out"
   ARCH=arm64
   CC=clang
-  LD=ld.lld
+  LD=aarch64-linux-gnu-ld
   CLANG_TRIPLE=aarch64-linux-gnu-
   CROSS_COMPILE=aarch64-linux-gnu-
 )
 
 clang --version
-ld.lld --version
+aarch64-linux-gnu-ld --version
 make "${make_args[@]}" olddefconfig
 
 required=(
