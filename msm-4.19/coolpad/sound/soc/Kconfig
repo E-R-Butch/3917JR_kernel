@@ -1,0 +1,3 @@
+config SND_SOC_PA_CAL
+	bool "Yulong speaker amplifier calibration compatibility"
+	default n

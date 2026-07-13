@@ -1,0 +1,7 @@
+config YL_TOUCHSCREEN_HAL
+	bool "Yulong touchscreen HAL compatibility"
+	default n
+
+config YL_TOUCHSCREEN_FT3518
+	bool "Yulong FT3518 compatibility"
+	default n

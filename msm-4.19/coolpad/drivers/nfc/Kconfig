@@ -1,0 +1,11 @@
+config YL_NFC_NXP_SN100F
+	bool "Yulong NXP SN100F compatibility"
+	default n
+
+config YL_NFC_PN553_DEVICES
+	bool "Yulong PN553 compatibility"
+	default n
+
+config YL_NFC_PN54X_DEVICES
+	bool "Yulong PN54x compatibility"
+	default n
