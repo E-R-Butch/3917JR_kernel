@@ -1,0 +1,12 @@
+diff --git a/include/uapi/drm/msm_drm.h b/include/uapi/drm/msm_drm.h
+index fd927a04435b..ac3a26115d92 100644
+--- a/include/uapi/drm/msm_drm.h
++++ b/include/uapi/drm/msm_drm.h
+@@ -441,6 +441,7 @@ struct drm_msm_event_resp {
+ #define DRM_EVENT_LTM_HIST 0X80000008
+ #define DRM_EVENT_LTM_WB_PB 0X80000009
+ #define DRM_EVENT_LTM_OFF 0X8000000A
++#define DRM_EVENT_TOUCH 0X8000000B
+ 
+ #define DRM_IOCTL_MSM_GET_PARAM        DRM_IOWR(DRM_COMMAND_BASE + DRM_MSM_GET_PARAM, struct drm_msm_param)
+ #define DRM_IOCTL_MSM_GEM_NEW          DRM_IOWR(DRM_COMMAND_BASE + DRM_MSM_GEM_NEW, struct drm_msm_gem_new)

@@ -1,0 +1,8 @@
+config PXLW_IRIS3
+	bool "Pixelworks Iris3 compatibility"
+	default n
+
+config PXLW_IRIS3_PLATFORM_7250
+	bool "Pixelworks Iris3 SM7250 compatibility"
+	depends on PXLW_IRIS3
+	default n

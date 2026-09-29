@@ -1,0 +1,19 @@
+diff --git a/techpack/camera/config/litocamera.conf b/techpack/camera/config/litocamera.conf
+index 3c88582..005d7ab 100644
+--- a/techpack/camera/config/litocamera.conf
++++ b/techpack/camera/config/litocamera.conf
+@@ -3,4 +3,3 @@
+ # Copyright (C) 2020 XiaoMi, Inc.
+ 
+ export CONFIG_SPECTRA_CAMERA=y
+-export CONFIG_MI7250_CAMERA=y
+diff --git a/techpack/camera/config/litocameraconf.h b/techpack/camera/config/litocameraconf.h
+index e4fa58b..8f6b155 100644
+--- a/techpack/camera/config/litocameraconf.h
++++ b/techpack/camera/config/litocameraconf.h
+@@ -5,5 +5,4 @@
+  */
+ 
+ #define CONFIG_SPECTRA_CAMERA 1
+-#define CONFIG_MI7250_CAMERA 1
+ 
