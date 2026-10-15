@@ -13698,7 +13698,7 @@ static int vmx_check_intercept(struct kvm_vcpu *vcpu,
 	}
 
 	/* TODO: check more intercepts... */
-	return X86EMUL_UNHANDLEABLE;
+	return X86EMUL_CONTINUE;
 }
 
 #ifdef CONFIG_X86_64

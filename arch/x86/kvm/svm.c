@@ -513,9 +513,6 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 	c->intercept_dr = h->intercept_dr | g->intercept_dr;
 	c->intercept_exceptions = h->intercept_exceptions | g->intercept_exceptions;
 	c->intercept = h->intercept | g->intercept;
-
-	c->intercept |= (1ULL << INTERCEPT_VMLOAD);
-	c->intercept |= (1ULL << INTERCEPT_VMSAVE);
 }
 
 static inline struct vmcb *get_host_vmcb(struct vcpu_svm *svm)
@@ -995,32 +992,33 @@ static void svm_cpu_uninit(int cpu)
 static int svm_cpu_init(int cpu)
 {
 	struct svm_cpu_data *sd;
+	int r;
 
 	sd = kzalloc(sizeof(struct svm_cpu_data), GFP_KERNEL);
 	if (!sd)
 		return -ENOMEM;
 	sd->cpu = cpu;
+	r = -ENOMEM;
 	sd->save_area = alloc_page(GFP_KERNEL);
 	if (!sd->save_area)
-		goto free_cpu_data;
+		goto err_1;
 
 	if (svm_sev_enabled()) {
+		r = -ENOMEM;
 		sd->sev_vmcbs = kmalloc_array(max_sev_asid + 1,
 					      sizeof(void *),
 					      GFP_KERNEL);
 		if (!sd->sev_vmcbs)
-			goto free_save_area;
+			goto err_1;
 	}
 
 	per_cpu(svm_data, cpu) = sd;
 
 	return 0;
 
-free_save_area:
-	__free_page(sd->save_area);
-free_cpu_data:
+err_1:
 	kfree(sd);
-	return -ENOMEM;
+	return r;
 
 }
 
@@ -1390,7 +1388,12 @@ static __init int svm_hardware_setup(void)
 		}
 	}
 
-	vgif = false; /* Disabled for CVE-2021-3653 */
+	if (vgif) {
+		if (!boot_cpu_has(X86_FEATURE_VGIF))
+			vgif = false;
+		else
+			pr_info("Virtual GIF supported\n");
+	}
 
 	return 0;
 
@@ -1892,7 +1895,6 @@ static void sev_vm_destroy(struct kvm *kvm)
 		list_for_each_safe(pos, q, head) {
 			__unregister_enc_region_locked(kvm,
 				list_entry(pos, struct enc_region, list));
-			cond_resched();
 		}
 	}
 
@@ -3520,13 +3522,7 @@ static void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 	svm->nested.intercept            = nested_vmcb->control.intercept;
 
 	svm_flush_tlb(&svm->vcpu, true);
-
-	svm->vmcb->control.int_ctl &=
-			V_INTR_MASKING_MASK | V_GIF_ENABLE_MASK | V_GIF_MASK;
-
-	svm->vmcb->control.int_ctl |= nested_vmcb->control.int_ctl &
-			(V_TPR_MASK | V_IRQ_INJECTION_BITS_MASK);
-
+	svm->vmcb->control.int_ctl = nested_vmcb->control.int_ctl | V_INTR_MASKING_MASK;
 	if (nested_vmcb->control.int_ctl & V_INTR_MASKING_MASK)
 		svm->vcpu.arch.hflags |= HF_VINTR_MASK;
 	else
