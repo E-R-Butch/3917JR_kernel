@@ -156,15 +156,12 @@ inline int nci_request(struct nci_dev *ndev,
 {
 	int rc;
 
+	if (!test_bit(NCI_UP, &ndev->flags))
+		return -ENETDOWN;
+
 	/* Serialize all requests */
 	mutex_lock(&ndev->req_lock);
-	/* check the state after obtaing the lock against any races
-	 * from nci_close_device when the device gets removed.
-	 */
-	if (test_bit(NCI_UP, &ndev->flags))
-		rc = __nci_request(ndev, req, opt, timeout);
-	else
-		rc = -ENETDOWN;
+	rc = __nci_request(ndev, req, opt, timeout);
 	mutex_unlock(&ndev->req_lock);
 
 	return rc;
@@ -893,11 +890,6 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 		return -EINVAL;
 	}
 
-	if (protocol >= NFC_PROTO_MAX) {
-		pr_err("the requested nfc protocol is invalid\n");
-		return -EINVAL;
-	}
-
 	if (!(nci_target->supported_protocols & (1 << protocol))) {
 		pr_err("target does not support the requested protocol 0x%x\n",
 		       protocol);
@@ -1195,7 +1187,6 @@ EXPORT_SYMBOL(nci_allocate_device);
 void nci_free_device(struct nci_dev *ndev)
 {
 	nfc_free_device(ndev->nfc_dev);
-	nci_hci_deallocate(ndev);
 	kfree(ndev);
 }
 EXPORT_SYMBOL(nci_free_device);

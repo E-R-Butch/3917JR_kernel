@@ -404,20 +404,15 @@ static int u32_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static void __u32_destroy_key(struct tc_u_knode *n)
+static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
+			   bool free_pf)
 {
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
 
 	tcf_exts_destroy(&n->exts);
+	tcf_exts_put_net(&n->exts);
 	if (ht && --ht->refcnt == 0)
 		kfree(ht);
-	kfree(n);
-}
-
-static void u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
-			    bool free_pf)
-{
-	tcf_exts_put_net(&n->exts);
 #ifdef CONFIG_CLS_U32_PERF
 	if (free_pf)
 		free_percpu(n->pf);
@@ -426,7 +421,8 @@ static void u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
 	if (free_pf)
 		free_percpu(n->pcpu_success);
 #endif
-	__u32_destroy_key(n);
+	kfree(n);
+	return 0;
 }
 
 /* u32_delete_key_rcu should be called when free'ing a copied
@@ -778,21 +774,10 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 struct netlink_ext_ack *extack)
 {
 	int err;
-#ifdef CONFIG_NET_CLS_IND
-	int ifindex = -1;
-#endif
 
 	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, extack);
 	if (err < 0)
 		return err;
-
-#ifdef CONFIG_NET_CLS_IND
-	if (tb[TCA_U32_INDEV]) {
-		ifindex = tcf_change_indev(net, tb[TCA_U32_INDEV], extack);
-		if (ifindex < 0)
-			return -EINVAL;
-	}
-#endif
 
 	if (tb[TCA_U32_LINK]) {
 		u32 handle = nla_get_u32(tb[TCA_U32_LINK]);
@@ -825,8 +810,13 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 	}
 
 #ifdef CONFIG_NET_CLS_IND
-	if (ifindex >= 0)
-		n->ifindex = ifindex;
+	if (tb[TCA_U32_INDEV]) {
+		int ret;
+		ret = tcf_change_indev(net, tb[TCA_U32_INDEV], extack);
+		if (ret < 0)
+			return -EINVAL;
+		n->ifindex = ret;
+	}
 #endif
 	return 0;
 }
@@ -879,6 +869,7 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 	new->ifindex = n->ifindex;
 #endif
 	new->fshift = n->fshift;
+	new->res = n->res;
 	new->flags = n->flags;
 	RCU_INIT_POINTER(new->ht_down, ht);
 
@@ -974,13 +965,13 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 				    tca[TCA_RATE], ovr, extack);
 
 		if (err) {
-			__u32_destroy_key(new);
+			u32_destroy_key(tp, new, false);
 			return err;
 		}
 
 		err = u32_replace_hw_knode(tp, new, flags, extack);
 		if (err) {
-			__u32_destroy_key(new);
+			u32_destroy_key(tp, new, false);
 			return err;
 		}
 

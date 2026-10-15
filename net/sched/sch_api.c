@@ -979,12 +979,11 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 
 skip:
 		if (!ingress) {
-			old = dev->qdisc;
+			notify_and_destroy(net, skb, n, classid,
+					   dev->qdisc, new);
 			if (new && !new->ops->attach)
 				qdisc_refcount_inc(new);
 			dev->qdisc = new ? : &noop_qdisc;
-
-			notify_and_destroy(net, skb, n, classid, old, new);
 
 			if (new && new->ops->attach)
 				new->ops->attach(new);
@@ -1007,12 +1006,8 @@ skip:
 			unsigned long cl = cops->find(parent, classid);
 
 			if (cl) {
-				if (new && new->ops == &noqueue_qdisc_ops) {
-					NL_SET_ERR_MSG(extack, "Cannot assign noqueue to a class");
-					err = -EINVAL;
-				} else {
-					err = cops->graft(parent, cl, new, &old, extack);
-				}
+				err = cops->graft(parent, cl, new, &old,
+						  extack);
 			} else {
 				NL_SET_ERR_MSG(extack, "Specified class not found");
 				err = -ENOENT;

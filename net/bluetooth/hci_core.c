@@ -1496,13 +1496,8 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	} else {
 		/* Init failed, cleanup */
 		flush_work(&hdev->tx_work);
-
-		/* Since hci_rx_work() is possible to awake new cmd_work
-		 * it should be flushed first to avoid unexpected call of
-		 * hci_cmd_work()
-		 */
-		flush_work(&hdev->rx_work);
 		flush_work(&hdev->cmd_work);
+		flush_work(&hdev->rx_work);
 
 		skb_queue_purge(&hdev->cmd_q);
 		skb_queue_purge(&hdev->rx_q);
@@ -2200,7 +2195,6 @@ static void hci_error_reset(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev, error_reset);
 
-	hci_dev_hold(hdev);
 	BT_DBG("%s", hdev->name);
 
 	if (hdev->hw_error)
@@ -2208,10 +2202,10 @@ static void hci_error_reset(struct work_struct *work)
 	else
 		bt_dev_err(hdev, "hardware error 0x%2.2x", hdev->hw_error_code);
 
-	if (!hci_dev_do_close(hdev))
-		hci_dev_do_open(hdev);
+	if (hci_dev_do_close(hdev))
+		return;
 
-	hci_dev_put(hdev);
+	hci_dev_do_open(hdev);
 }
 
 void hci_uuids_clear(struct hci_dev *hdev)
