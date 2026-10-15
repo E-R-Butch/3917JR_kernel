@@ -436,7 +436,7 @@ static void get_futex_key_refs(union futex_key *key)
 
 	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
 	case FUT_OFF_INODE:
-		smp_mb();		/* explicit smp_mb(); (B) */
+		ihold(key->shared.inode); /* implies smp_mb(); (B) */
 		break;
 	case FUT_OFF_MMSHARED:
 		futex_get_mm(key); /* implies smp_mb(); (B) */
@@ -470,50 +470,11 @@ static void drop_futex_key_refs(union futex_key *key)
 
 	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
 	case FUT_OFF_INODE:
+		iput(key->shared.inode);
 		break;
 	case FUT_OFF_MMSHARED:
 		mmdrop(key->private.mm);
 		break;
-	}
-}
-
-/*
- * Generate a machine wide unique identifier for this inode.
- *
- * This relies on u64 not wrapping in the life-time of the machine; which with
- * 1ns resolution means almost 585 years.
- *
- * This further relies on the fact that a well formed program will not unmap
- * the file while it has a (shared) futex waiting on it. This mapping will have
- * a file reference which pins the mount and inode.
- *
- * If for some reason an inode gets evicted and read back in again, it will get
- * a new sequence number and will _NOT_ match, even though it is the exact same
- * file.
- *
- * It is important that match_futex() will never have a false-positive, esp.
- * for PI futexes that can mess up the state. The above argues that false-negatives
- * are only possible for malformed programs.
- */
-static u64 get_inode_sequence_number(struct inode *inode)
-{
-	static atomic64_t i_seq;
-	u64 old;
-
-	/* Does the inode already have a sequence number? */
-	old = atomic64_read(&inode->i_sequence);
-	if (likely(old))
-		return old;
-
-	for (;;) {
-		u64 new = atomic64_add_return(1, &i_seq);
-		if (WARN_ON_ONCE(!new))
-			continue;
-
-		old = atomic64_cmpxchg_relaxed(&inode->i_sequence, 0, new);
-		if (old)
-			return old;
-		return new;
 	}
 }
 
@@ -529,15 +490,9 @@ static u64 get_inode_sequence_number(struct inode *inode)
  *
  * The key words are stored in @key on success.
  *
- * For shared mappings (when @fshared), the key is:
- *   ( inode->i_sequence, page->index, offset_within_page )
- * [ also see get_inode_sequence_number() ]
- *
- * For private mappings (or when !@fshared), the key is:
- *   ( current->mm, address, 0 )
- *
- * This allows (cross process, where applicable) identification of the futex
- * without keeping the page pinned for the duration of the FUTEX_WAIT.
+ * For shared mappings, it's (page->index, file_inode(vma->vm_file),
+ * offset_within_page).  For private mappings, it's (uaddr, current->mm).
+ * We can usually work out the index without swapping in the page.
  *
  * lock_page() might sleep, the caller should not hold a spinlock.
  */
@@ -677,6 +632,8 @@ again:
 		key->private.mm = mm;
 		key->private.address = address;
 
+		get_futex_key_refs(key); /* implies smp_mb(); (B) */
+
 	} else {
 		struct inode *inode;
 
@@ -708,13 +665,39 @@ again:
 			goto again;
 		}
 
+		/*
+		 * Take a reference unless it is about to be freed. Previously
+		 * this reference was taken by ihold under the page lock
+		 * pinning the inode in place so i_lock was unnecessary. The
+		 * only way for this check to fail is if the inode was
+		 * truncated in parallel which is almost certainly an
+		 * application bug. In such a case, just retry.
+		 *
+		 * We are not calling into get_futex_key_refs() in file-backed
+		 * cases, therefore a successful atomic_inc return below will
+		 * guarantee that get_futex_key() will still imply smp_mb(); (B).
+		 */
+		if (!atomic_inc_not_zero(&inode->i_count)) {
+			rcu_read_unlock();
+			put_page(page);
+
+			goto again;
+		}
+
+		/* Should be impossible but lets be paranoid for now */
+		if (WARN_ON_ONCE(inode->i_mapping != mapping)) {
+			err = -EFAULT;
+			rcu_read_unlock();
+			iput(inode);
+
+			goto out;
+		}
+
 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
-		key->shared.i_seq = get_inode_sequence_number(inode);
+		key->shared.inode = inode;
 		key->shared.pgoff = basepage_index(tail);
 		rcu_read_unlock();
 	}
-
-	get_futex_key_refs(key); /* implies smp_mb(); (B) */
 
 out:
 	put_page(page);
@@ -2406,8 +2389,8 @@ retry:
 		}
 
 		if (__rt_mutex_futex_trylock(&pi_state->pi_mutex)) {
-			/* We got the lock. pi_state is correct. Tell caller. */
-			ret = 1;
+			/* We got the lock after all, nothing to fix. */
+			ret = 0;
 			goto out_unlock;
 		}
 
@@ -2423,7 +2406,7 @@ retry:
 			 * We raced against a concurrent self; things are
 			 * already fixed up. Nothing to do.
 			 */
-			ret = 1;
+			ret = 0;
 			goto out_unlock;
 		}
 		newowner = argowner;
@@ -2469,7 +2452,7 @@ retry:
 	raw_spin_unlock(&newowner->pi_lock);
 	raw_spin_unlock_irq(&pi_state->pi_mutex.wait_lock);
 
-	return argowner == current;
+	return 0;
 
 	/*
 	 * In order to reschedule or handle a page fault, we need to drop the
@@ -2511,7 +2494,7 @@ handle_err:
 	 * Check if someone else fixed it for us:
 	 */
 	if (pi_state->owner != oldowner) {
-		ret = argowner == current;
+		ret = 0;
 		goto out_unlock;
 	}
 
@@ -2544,6 +2527,8 @@ static long futex_wait_restart(struct restart_block *restart);
  */
 static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 {
+	int ret = 0;
+
 	if (locked) {
 		/*
 		 * Got the lock. We might not be the anticipated owner if we
@@ -2554,8 +2539,8 @@ static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 		 * stable state, anything else needs more attention.
 		 */
 		if (q->pi_state->owner != current)
-			return fixup_pi_state_owner(uaddr, q, current);
-		return 1;
+			ret = fixup_pi_state_owner(uaddr, q, current);
+		goto out;
 	}
 
 	/*
@@ -2566,8 +2551,10 @@ static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 	 * Another speculative read; pi_state->owner == current is unstable
 	 * but needs our attention.
 	 */
-	if (q->pi_state->owner == current)
-		return fixup_pi_state_owner(uaddr, q, NULL);
+	if (q->pi_state->owner == current) {
+		ret = fixup_pi_state_owner(uaddr, q, NULL);
+		goto out;
+	}
 
 	/*
 	 * Paranoia check. If we did not take the lock, then we should not be
@@ -2580,7 +2567,8 @@ static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 				q->pi_state->owner);
 	}
 
-	return 0;
+out:
+	return ret ? ret : locked;
 }
 
 /**
@@ -3302,7 +3290,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 		if (q.pi_state && (q.pi_state->owner != current)) {
 			spin_lock(q.lock_ptr);
 			ret = fixup_pi_state_owner(uaddr2, &q, current);
-			if (ret < 0 && rt_mutex_owner(&q.pi_state->pi_mutex) == current) {
+			if (ret && rt_mutex_owner(&q.pi_state->pi_mutex) == current) {
 				pi_state = q.pi_state;
 				get_pi_state(pi_state);
 			}
@@ -3312,11 +3300,6 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 			 */
 			put_pi_state(q.pi_state);
 			spin_unlock(q.lock_ptr);
-			/*
-			 * Adjust the return value. It's either -EFAULT or
-			 * success (1) but the caller expects 0 for success.
-			 */
-			ret = ret < 0 ? ret : 0;
 		}
 	} else {
 		struct rt_mutex *pi_mutex;

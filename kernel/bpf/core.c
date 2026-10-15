@@ -34,6 +34,7 @@
 #include <linux/perf_event.h>
 
 #include <asm/barrier.h>
+#include <linux/nospec.h>
 #include <asm/unaligned.h>
 
 /* Registers */

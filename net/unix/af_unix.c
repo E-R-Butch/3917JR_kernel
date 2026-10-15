@@ -107,6 +107,8 @@
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/af_unix.h>
+
+extern spinlock_t unix_gc_lock;
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/scm.h>
