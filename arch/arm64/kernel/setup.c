@@ -370,7 +370,7 @@ void __init setup_arch(char **cmdline_p)
 			boot_args[1], boot_args[2], boot_args[3]);
 	}
 
-	init_random_pool();
+	/* DIAG-QEMU-STUB: QEMU 无 SCM，跳过取熵 */
 }
 
 static int __init topology_init(void)
