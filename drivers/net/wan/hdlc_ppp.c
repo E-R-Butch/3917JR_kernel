@@ -386,8 +386,11 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	}
 
 	for (opt = data; len; len -= opt[1], opt += opt[1]) {
-		if (len < 2 || opt[1] < 2 || len < opt[1])
-			goto err_out;
+		if (len < 2 || len < opt[1]) {
+			dev->stats.rx_errors++;
+			kfree(out);
+			return; /* bad packet, drop silently */
+		}
 
 		if (pid == PID_LCP)
 			switch (opt[0]) {
@@ -395,8 +398,6 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 				continue; /* MRU always OK and > 1500 bytes? */
 
 			case LCP_OPTION_ACCM: /* async control character map */
-				if (opt[1] < sizeof(valid_accm))
-					goto err_out;
 				if (!memcmp(opt, valid_accm,
 					    sizeof(valid_accm)))
 					continue;
@@ -408,8 +409,6 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 				}
 				break;
 			case LCP_OPTION_MAGIC:
-				if (len < 6)
-					goto err_out;
 				if (opt[1] != 6 || (!opt[2] && !opt[3] &&
 						    !opt[4] && !opt[5]))
 					break; /* reject invalid magic number */
@@ -427,11 +426,6 @@ static void ppp_cp_parse_cr(struct net_device *dev, u16 pid, u8 id,
 	else
 		ppp_cp_event(dev, pid, RCR_GOOD, CP_CONF_ACK, id, req_len, data);
 
-	kfree(out);
-	return;
-
-err_out:
-	dev->stats.rx_errors++;
 	kfree(out);
 }
 

@@ -529,7 +529,7 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	 * Grab our output buffer.
 	 */
 	nl = orig_nl = get_result_buffer(param, param_size, &len);
-	if (len < needed || len < sizeof(nl->dev)) {
+	if (len < needed) {
 		param->flags |= DM_BUFFER_FULL_FLAG;
 		goto out;
 	}
@@ -1409,12 +1409,11 @@ static int table_clear(struct file *filp, struct dm_ioctl *param, size_t param_s
 		hc->new_map = NULL;
 	}
 
+	param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
+
+	__dev_status(hc->md, param);
 	md = hc->md;
 	up_write(&_hash_lock);
-
-	param->flags &= ~DM_INACTIVE_PRESENT_FLAG;
-	__dev_status(md, param);
-
 	if (old_map) {
 		dm_sync_table(md);
 		dm_table_destroy(old_map);

@@ -377,6 +377,7 @@ static netdev_tx_t mcba_usb_start_xmit(struct sk_buff *skb,
 xmit_failed:
 	can_free_echo_skb(priv->netdev, ctx->ndx);
 	mcba_usb_free_ctx(ctx);
+	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 
 	return NETDEV_TX_OK;
@@ -886,8 +887,9 @@ static void mcba_usb_disconnect(struct usb_interface *intf)
 	netdev_info(priv->netdev, "device disconnected\n");
 
 	unregister_candev(priv->netdev);
-	mcba_urb_unlink(priv);
 	free_candev(priv->netdev);
+
+	mcba_urb_unlink(priv);
 }
 
 static struct usb_driver mcba_usb_driver = {

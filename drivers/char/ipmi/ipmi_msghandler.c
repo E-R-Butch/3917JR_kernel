@@ -2852,7 +2852,7 @@ cleanup_bmc_device(struct kref *ref)
 	 * with removing the device attributes while reading a device
 	 * attribute.
 	 */
-	queue_work(remove_work_wq, &bmc->remove_work);
+	schedule_work(&bmc->remove_work);
 }
 
 /*
@@ -2957,11 +2957,8 @@ static int __ipmi_bmc_register(struct ipmi_smi *intf,
 		bmc->pdev.name = "ipmi_bmc";
 
 		rv = ida_simple_get(&ipmi_bmc_ida, 0, 0, GFP_KERNEL);
-		if (rv < 0) {
-			kfree(bmc);
+		if (rv < 0)
 			goto out;
-		}
-
 		bmc->pdev.dev.driver = &ipmidriver.driver;
 		bmc->pdev.id = rv;
 		bmc->pdev.dev.release = release_bmc_device;
