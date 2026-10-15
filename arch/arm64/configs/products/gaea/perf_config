@@ -1,0 +1,29 @@
+# Product configs that only apply for user build go here
+
+# ULMK support
+#CONFIG_ANDROID_LOW_MEMORY_KILLER=n
+
+#############################
+# kernel hacking            #
+#############################
+
+
+# CONFIG_SLUB_DEBUG is not set
+
+CONFIG_IOMMU_DEBUG=n
+CONFIG_PAGE_OWNER=n
+CONFIG_RC_CORE=n
+
+# enable erofs
+CONFIG_EROFS_FS=y
+CONFIG_EROFS_FS_SECURITY=y
+
+# disable ramdisk bzip2/lzma
+CONFIG_RD_BZIP2=n
+CONFIG_RD_LZMA=n
+
+#############################
+#  ZRAM lo4hc               #
+#############################
+CONFIG_CRYPTO_LZ4HC=y
+

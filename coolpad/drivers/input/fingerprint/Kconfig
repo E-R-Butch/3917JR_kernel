@@ -1,0 +1,8 @@
+config INPUT_FINGERPRINT
+	bool "Yulong fingerprint compatibility"
+	default n
+
+config GOODIX_GW9558_FINGERPRINT
+	bool "Goodix GW9558 fingerprint compatibility"
+	depends on INPUT_FINGERPRINT
+	default n

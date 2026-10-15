@@ -1,0 +1,30 @@
+config BOOTREASON
+	bool "Yulong boot reason compatibility"
+	default n
+
+config YL_PSTORE_SSR_REASON
+	bool "Yulong SSR reason compatibility"
+	default n
+
+config YL_RESERVED_RAM
+	bool "Yulong reserved RAM compatibility"
+	default n
+
+config YL_RESERVED_RAM_BASE
+	hex "Yulong reserved RAM base"
+	depends on YL_RESERVED_RAM
+	default 0x9b800000
+
+config OEMINFO
+	bool "Yulong OEM info compatibility"
+	default n
+
+config OEMINFO_DEV_BLK_PATH
+	string "Yulong OEM info block path"
+	depends on OEMINFO
+	default "/dev/block/by-name/params"
+
+config OEMINFO_DEV_BLK_SIZE
+	int "Yulong OEM info block size"
+	depends on OEMINFO
+	default 4096

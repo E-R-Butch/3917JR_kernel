@@ -1,0 +1,11 @@
+config YL_POWER_RESET
+	bool "Yulong power reset compatibility"
+	default n
+
+config YL_REBOOT_STRESS_TEST
+	bool "Yulong reboot stress compatibility"
+	default n
+
+config YL_DLOAD_MODE
+	bool "Yulong download mode compatibility"
+	default n

@@ -1,0 +1,3 @@
+config YL_PMIC_INPUT_LOGGING
+	bool "Yulong PMIC input logging compatibility"
+	default n

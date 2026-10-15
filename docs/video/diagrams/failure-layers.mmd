@@ -1,0 +1,17 @@
+flowchart LR
+    A["启动期<br/>Camera SMMU panic"] --> B["CSIPHY<br/>版本缺失"]
+    B --> C["Power enum<br/>私有项错位"]
+    C --> D["GPIO rails<br/>VANA / VDIG / VAF"]
+    D --> E["Sensor probe<br/>5 slots"]
+    E --> F["CPAS / CSID / VFE<br/>硬件表与 compatible"]
+    F --> G["LinkControl UAPI<br/>32 bytes, handle +24"]
+    G --> H["闭源 CHI<br/>逻辑多摄 null guard"]
+    H --> I["Audio / ADSP / PDR<br/>framework 稳定"]
+    I --> J[前后摄 Preview + JPEG]
+
+    classDef kernel fill:#e7f5ff,stroke:#1971c2,color:#212529;
+    classDef userspace fill:#fff3bf,stroke:#f08c00,color:#212529;
+    classDef result fill:#d3f9d8,stroke:#2f9e44,color:#212529;
+    class A,B,C,D,E,F,G,I kernel;
+    class H userspace;
+    class J result;

@@ -1,0 +1,87 @@
+# Normal product specific configs go here
+# Notes:
+#  1. Try to use DTS file instead of adding product configs here.
+#  2. If DTS file really cannot be used to represent differences between products, add
+#     kernel configs here, but explain the reason first and add others to review.
+
+#############################
+#  configs for lcd id node  #
+#############################
+CONFIG_YL_LCD_PANEL_NODE=n
+
+#############################
+#  configs for px iris3     #
+#############################
+CONFIG_PXLW_IRIS3=n
+
+#############################
+#  configs for touch        #
+#############################
+CONFIG_YL_TOUCHSCREEN_HAL=y
+CONFIG_YL_TOUCHSCREEN_FT8719_7250=y
+
+#############################
+#  configs for sensors      #
+#############################
+
+#############################
+#  configs for camera       #
+#############################
+
+#############################
+#  configs for camera LED   #
+#############################
+
+#############################
+#  configs for NFC          #
+#############################
+CONFIG_NFC_NQ=n
+
+#############################
+#  configs for pstore       #
+#############################
+#CONFIG_FUNCTION_TRACER=y
+#CONFIG_PSTORE=y
+#CONFIG_PSTORE_CONSOLE=y
+#CONFIG_PSTORE_FTRACE=y
+#CONFIG_PSTORE_RAM=y
+#CONFIG_PSTORE_PMSG=y
+
+#############################
+# configs for fingerprint   #
+#############################
+
+#############################
+#  misc                     #
+#############################
+CONFIG_INPUT_HBTP_INPUT=n
+# Enlarge KMSG buffer to 1MB
+# CONFIG_LOG_BUF_SHIFT=20
+
+#############################
+#  configs for charger      #
+#############################
+
+#############################
+#  configs for audio        #
+#############################
+CONFIG_SND_SOC_PA_CAL=n
+CONFIG_SND_SOC_RT1011=n
+
+#############################
+#  configs for File System  #
+#############################
+#CONFIG_EXFAT_FS=y
+
+#############################
+#  configs for tbase        #
+#############################
+CONFIG_TRUSTONIC_TEE=n
+
+CONFIG_INET_UDP_DIAG=y
+
+CONFIG_SYSVIPC=n
+
+CONFIG_ZRAM_MEMORY_TRACKING=n
+CONFIG_ZRAM_WRITEBACK=n
+

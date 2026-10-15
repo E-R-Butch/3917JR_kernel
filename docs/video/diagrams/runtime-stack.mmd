@@ -1,0 +1,16 @@
+flowchart TB
+    A[Docker: Alpine / Nginx] --> B[containerd + runc]
+    B --> C["Ubuntu 24.04 in DroidSpaces<br/>systemd as container PID 1"]
+    C --> D[DroidSpaces Android userspace]
+    D --> E["R16 4.19.81-perf+ #21<br/>shared host kernel"]
+    E --> F["SM7250 hardware<br/>3917JR gaea"]
+
+    G[iptables-legacy] -. network compatibility .-> B
+    H[VFS Docker storage] -. F2FS upperdir workaround .-> B
+
+    classDef user fill:#f8f0fc,stroke:#9c36b5,color:#212529;
+    classDef kernel fill:#e7f5ff,stroke:#1971c2,color:#212529;
+    classDef hw fill:#f1f3f5,stroke:#495057,color:#212529;
+    class A,B,C,D user;
+    class E kernel;
+    class F hw;

@@ -1,0 +1,8 @@
+# Reference-only artifacts. These paths are intentionally gitignored.
+# Place locally obtained artifacts at the paths below before using sha256sum -c.
+1162c3bf197b5395d4488923336cd28b0ed49a6874d2ffd8cf6d70d263d9f58a  artifacts/reference/R16/Image
+7a1e1b93e842824f7df940adaf785fa0ded229f4aa8cee2a22916acd86cae07a  artifacts/reference/R16/3917JR-DroidSpaces-R16-ABYP-DEBUG-ABI21-RAMBOOT_ONLY_NEVER_FLASH.img
+c68f0e88ee3003368e75847b3a47036abe827ce473a49a8b8a33293b2423998a  configs/gaea-r16-golden.config
+c1a157cf0859f9cb62f74794fd856f704029703c4b75bacc70fa900893411fb8  artifacts/reference/R16/Module.symvers
+8badf064b18b8ef7c92a798d1f1b0abac02fa2dc02271b0497136fa19d10bf68  artifacts/reference/R16/vmlinux
+be48de0285118e6fd74dcba8c6fb01d6f8cd9227bfd4b75d52c808d0098db511  artifacts/reference/R16/System.map

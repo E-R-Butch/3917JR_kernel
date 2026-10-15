@@ -1,0 +1,8 @@
+# ==============================
+# only for product factory image
+# ==============================
+
+# serial
+CONFIG_SERIAL_MSM_GENI_CONSOLE=n
+CONFIG_SERIAL_DEV_BUS=n
+CONFIG_TTY_PRINTK=n

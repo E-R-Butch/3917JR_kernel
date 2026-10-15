@@ -1,0 +1,33 @@
+# Product configs that only apply for user build go here
+
+# ULMK support
+#CONFIG_ANDROID_LOW_MEMORY_KILLER=n
+
+#############################
+#  configs for pstore       #
+#############################
+CONFIG_PSTORE=n
+CONFIG_PSTORE_CONSOLE=n
+CONFIG_PSTORE_RAM=n
+
+#############################
+# kernel hacking            #
+#############################
+
+
+# CONFIG_SLUB_DEBUG is not set
+
+CONFIG_IOMMU_DEBUG=n
+CONFIG_PAGE_OWNER=n
+CONFIG_RC_CORE=n
+
+CONFIG_KSM=n
+
+#############################
+# disable pasr              #
+#############################
+CONFIG_MEMORY_HOTPLUG=n
+CONFIG_QCOM_MEM_OFFLINE=n
+CONFIG_OVERRIDE_MEMORY_LIMIT=n
+
+CONFIG_YL_FS_TRACK_CHMOD=n

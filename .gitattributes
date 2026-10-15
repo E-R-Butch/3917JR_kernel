@@ -1,0 +1,20 @@
+* text=auto
+
+*.c text eol=lf
+*.h text eol=lf
+*.S text eol=lf
+*.dts text eol=lf
+*.dtsi text eol=lf
+*.Kconfig text eol=lf
+Kconfig text eol=lf
+Makefile text eol=lf
+*.mk text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.rst text eol=lf
+*.config text eol=lf
+
+*.x509 binary
+*.der binary
+*.dtb binary
+*.dtbo binary

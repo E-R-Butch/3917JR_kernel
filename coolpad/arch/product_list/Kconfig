@@ -1,0 +1,11 @@
+menu "Yulong product compatibility"
+
+config YULONG_PRODUCT
+	bool "Yulong product support"
+	default y
+
+config BOARD_GAEA
+	bool "Yulong gaea (3917JR)"
+	default y
+
+endmenu

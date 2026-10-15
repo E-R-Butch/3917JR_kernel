@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "project": {
+    "device": "Rakuten BIG s 3917JR",
+    "codename": "gaea",
+    "manufacturer_lineage": "Yulong/Coolpad",
+    "soc": "Qualcomm SM7250/Lito",
+    "android": "10",
+    "stock_kernel": "4.19.81-perf+",
+    "golden_candidate": "R16 build #21",
+    "golden_mode": "RAM-boot only"
+  },
+  "original_goal": "Make DroidSpaces genuinely usable on 3917JR by restoring the host-kernel namespaces, TUN/TAP, VETH, bridge and container capabilities that root or Magisk cannot add at runtime.",
+  "thesis": "To repair DroidSpaces, rescue a public Yulong/Coolpad kernel tree that compiled but did not reproduce the production device, then restore missing OEM implementations, replacement-module ABI and closed HAL interface compatibility through evidence-led iteration.",
+  "private_dependency_layers": [
+    {
+      "layer": "in-tree OEM support",
+      "method": "port GPL or public same-IC implementations and validate against production behavior",
+      "examples": ["Iris3 display", "FocalTech runtime", "camera hardware tables", "Yulong reserved memory"]
+    },
+    {
+      "layer": "kernel-coupled replacement modules",
+      "method": "rebuild and sign against the candidate Module.symvers, then audit real imports",
+      "composition": "32 Qualcomm external-tree modules plus 5 in-tree core modules; stock br_netfilter became built-in",
+      "count": 37,
+      "import_dependencies": 2799,
+      "missing_imports": 0,
+      "crc_mismatches": 0
+    },
+    {
+      "layer": "closed Android userspace",
+      "method": "restore the kernel UAPI and behavior expected by the production HAL; keep proprietary binaries local",
+      "examples": ["32-byte camera LinkControl with handle at +24", "hash-checked CHI null-guard bind mount"]
+    }
+  ],
+  "evidence_levels": {
+    "measured": "verified on the device, in logs, dump or a real workload",
+    "located": "closed by a call stack, disassembly or controlled comparison",
+    "inferred": "plausible but not strong enough to state as root cause",
+    "offline": "built or inspected without an on-device result"
+  },
+  "golden_hashes": {
+    "r16_image_sha256": "1162c3bf197b5395d4488923336cd28b0ed49a6874d2ffd8cf6d70d263d9f58a",
+    "r16_ramboot_sha256": "7a1e1b93e842824f7df940adaf785fa0ded229f4aa8cee2a22916acd86cae07a",
+    "r16_config_sha256": "c68f0e88ee3003368e75847b3a47036abe827ce473a49a8b8a33293b2423998a",
+    "r16_module_symvers_sha256": "c1a157cf0859f9cb62f74794fd856f704029703c4b75bacc70fa900893411fb8"
+  },
+  "r16_validation": {
+    "data": "F2FS read-write and RUNNING_UNLOCKED",
+    "android_hardware": ["display", "touch", "Wi-Fi", "cellular", "audio", "front camera preview and JPEG", "rear camera preview and JPEG"],
+    "droidspaces": ["namespaces", "TUN/TAP ioctl", "VETH", "bridge", "OverlayFS capability"],
+    "duration": "more than 15 hours in the 2026-08-05 validation window",
+    "post_load_new_errors": {
+      "panic_or_oops": 0,
+      "severe_display_errors": 0,
+      "network_watchdog_errors": 0
+    },
+    "docker": {
+      "ubuntu": "24.04",
+      "docker": "29.1.3",
+      "networking": "iptables-legacy required",
+      "storage_driver": "VFS used because Android F2FS was unsuitable as this 4.19 OverlayFS upperdir",
+      "passed": ["Alpine HTTPS", "Nginx host port 18080 to container port 80 HTTP 200", "256 MiB write sync and SHA-256"]
+    }
+  },
+  "non_claims": [
+    "R16 is not a persistent-flash release.",
+    "R16 is not yet a bit-identical reproducible build.",
+    "R16 is not yet a CIP-updated kernel.",
+    "Camera success was not kernel-only; it included a local proprietary CHI compatibility step.",
+    "R13 had no on-device boot result.",
+    "R15 did not prove an Android data-password decryption failure.",
+    "Goodix fingerprint was not in the R16 final acceptance scope.",
+    "Docker cgroup CPU memory and I/O limits were not proven usable."
+  ],
+  "publication_rules": {
+    "allowed": ["kernel source", "configuration", "source provenance", "golden hashes", "redacted log excerpts", "diagrams", "measured result summaries"],
+    "forbidden": ["stock boot images", "vendor blobs", "module binaries", "complete memory dumps", "signing private keys", "device credentials", "serial numbers", "Wi-Fi names or local addresses"],
+    "historic_media_status": "the seven temporary screenshots named by the old script no longer exist; re-record or use clearly labeled evidence cards"
+  }
+}

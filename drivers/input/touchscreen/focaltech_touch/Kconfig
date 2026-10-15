@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Focaltech Touchscreen driver configuration
+#
+
+config TOUCHSCREEN_FTS
+	bool "Focaltech Touchscreen"
+	help
+	  Say Y here if you have Focaltech touch panel.
+	  If unsure, say N.
+
+# Stock 3917JR defconfig names the built-in driver this way. Keep the
+# public GPL driver's existing symbol as the single build switch.
+config YL_TOUCHSCREEN_FT3518
+	bool "Yulong FT3518 touchscreen"
+	select TOUCHSCREEN_FTS
+	help
+	  Compatibility symbol for the 3917JR stock configuration.
+
+config TOUCHSCREEN_FTS_FW_UPDATE
+	bool "Allow FocalTech firmware and LIC writes"
+	depends on TOUCHSCREEN_FTS
+	default n
+	help
+	  Enable only after the FT3518 probe, IRQ and touch reporting have been
+	  validated. Keeping this disabled is the first-round flash-read-only
+	  bring-up mode: no automatic upgrade worker is started and no generic
+	  register/upgrade debug nodes are exposed.
+
+config TOUCHSCREEN_FTS_DIRECTORY
+	string "Focaltech ts directory name"
+	default "focaltech_touch"
+	depends on TOUCHSCREEN_FTS

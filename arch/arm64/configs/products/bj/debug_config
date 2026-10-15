@@ -1,0 +1,3 @@
+# Product configs that only apply for eng build go here
+
+CONFIG_YL_DEBUG=n

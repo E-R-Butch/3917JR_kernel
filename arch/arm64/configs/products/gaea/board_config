@@ -1,0 +1,104 @@
+# Normal product specific configs go here
+# Notes:
+#  1. Try to use DTS file instead of adding product configs here.
+#  2. If DTS file really cannot be used to represent differences between products, add
+#     kernel configs here, but explain the reason first and add others to review.
+
+#############################
+#  configs for amoled id node  #
+#############################
+CONFIG_YL_AMOLED_PANEL_NODE=y
+
+#############################
+#  configs for px iris3     #
+#############################
+CONFIG_PXLW_IRIS3=y
+CONFIG_PXLW_IRIS3_PLATFORM_7250=y
+
+#############################
+#  configs for touch        #
+#############################
+CONFIG_YL_TOUCHSCREEN_HAL=y
+CONFIG_YL_TOUCHSCREEN_FT3518=y
+
+
+#############################
+#  configs for display hbm  #
+#############################
+CONFIG_YL_DISPLAY_HBM=y
+
+#############################
+#  configs for sensors      #
+#############################
+
+#############################
+#  configs for camera       #
+#############################
+CONFIG_YL_CAMERA=y
+
+
+#############################
+#  configs for camera LED   #
+#############################
+
+#############################
+#  configs for NFC          #
+#############################
+CONFIG_NFC_NQ=n
+
+CONFIG_YL_NFC_NXP_SN100F=y
+CONFIG_YL_NFC_PN553_DEVICES=n
+CONFIG_YL_NFC_PN54X_DEVICES=n
+
+#############################
+# configs for fingerprint   #
+#############################
+CONFIG_INPUT_FINGERPRINT=y
+CONFIG_GOODIX_GW9558_FINGERPRINT=y
+#############################
+#  misc                     #
+#############################
+CONFIG_INPUT_HBTP_INPUT=n
+# Enlarge KMSG buffer to 1MB
+# CONFIG_LOG_BUF_SHIFT=20
+
+#############################
+#  configs for charger      #
+#############################
+
+#############################
+#  configs for audio        #
+#############################
+CONFIG_SND_SOC_PA_CAL=y
+CONFIG_SND_SOC_RT1011=y
+
+#############################
+#  configs for File System  #
+#############################
+#CONFIG_EXFAT_FS=y
+
+#############################
+#  configs for tbase        #
+#############################
+CONFIG_TRUSTONIC_TEE=n
+
+CONFIG_INET_UDP_DIAG=y
+
+CONFIG_SYSVIPC=n
+
+CONFIG_ZRAM_MEMORY_TRACKING=n
+CONFIG_ZRAM_WRITEBACK=n
+
+CONFIG_OEMINFO=y
+CONFIG_YL_PSTORE_SSR_REASON=y
+
+#############################
+#  disable mmc              #
+#############################
+CONFIG_MMC=n
+
+#############################
+#  Reserved RAM             #
+#############################
+CONFIG_YL_RESERVED_RAM=y
+CONFIG_YL_RESERVED_RAM_BASE=0x9b800000

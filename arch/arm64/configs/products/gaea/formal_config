@@ -1,0 +1,19 @@
+# Product configs that only apply for formal build go here
+
+# disable dump debug config
+CONFIG_CORESIGHT=n
+
+# disable tracepoints
+#CONFIG_TRACEPOINTS=n
+
+# remove bug()
+CONFIG_DEBUG_BUGVERBOSE=n
+
+# disable debug scheduler
+CONFIG_SCHEDSTATS=n
+
+# disable cma debug
+CONFIG_CMA_DEBUGFS=n
+
+# disable f2fs debug
+CONFIG_F2FS_STAT_FS=n

@@ -1,0 +1,36 @@
+config PXLW_IRIS3
+	bool "Pixelworks Iris3 compatibility"
+	default n
+
+config PXLW_IRIS3_PLATFORM_7250
+	bool "Pixelworks Iris3 SM7250 compatibility"
+	depends on PXLW_IRIS3
+	default n
+
+config PXLW_IRIS3_RECOVERY_ABYP
+	bool "Lock Iris3 in analog bypass for recovery bring-up"
+	depends on PXLW_IRIS3
+	default y
+	help
+	  Keep the first 3917JR recovery candidate in analog bypass mode and
+	  suppress Iris debugfs control surfaces that can switch into PT or write
+	  product-specific registers. Disable only after the ABYP boot path has
+	  been proven stable and the 3917JR PT/HBM/FOD paths are reconstructed.
+
+config PXLW_IRIS3_TCL_CALIBRATION
+	bool "Enable TCL panel OTP/MCF calibration path"
+	depends on PXLW_IRIS3
+	default n
+	help
+	  Enable only for a product that supplies the matching TCL panel OTP
+	  reader and MCF CRC implementation.  This must remain disabled for
+	  the 3917JR ABYP recovery candidate.
+
+config PXLW_IRIS3_TCL_BACKLIGHT
+	bool "Enable TCL product backlight and HBM coupling"
+	depends on PXLW_IRIS3
+	default n
+	help
+	  Enable only with the matching TCL HBM globals and panel command
+	  implementation.  The 3917JR recovery candidate keeps the platform
+	  panel backlight path instead.
