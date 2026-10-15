@@ -104,10 +104,11 @@ static void hv_uio_channel_cb(void *context)
 
 /*
  * Callback from vmbus_event when channel is rescinded.
+ * It is meant for rescind of primary channels only.
  */
 static void hv_uio_rescind(struct vmbus_channel *channel)
 {
-	struct hv_device *hv_dev = channel->primary_channel->device_obj;
+	struct hv_device *hv_dev = channel->device_obj;
 	struct hv_uio_private_data *pdata = hv_get_drvdata(hv_dev);
 
 	/*
@@ -118,6 +119,14 @@ static void hv_uio_rescind(struct vmbus_channel *channel)
 
 	/* Wake up reader */
 	uio_event_notify(&pdata->info);
+
+	/*
+	 * With rescind callback registered, rescind path will not unregister the device
+	 * from vmbus when the primary channel is rescinded.
+	 * Without it, rescind handling is incomplete and next onoffer msg does not come.
+	 * Unregister the device from vmbus here.
+	 */
+	vmbus_device_unregister(channel->device_obj);
 }
 
 /* Sysfs API to allow mmap of the ring buffers
@@ -131,11 +140,12 @@ static int hv_uio_ring_mmap(struct file *filp, struct kobject *kobj,
 		= container_of(kobj, struct vmbus_channel, kobj);
 	struct hv_device *dev = channel->primary_channel->device_obj;
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
+	void *ring_buffer = page_address(channel->ringbuffer_page);
 
 	dev_dbg(&dev->device, "mmap channel %u pages %#lx at %#lx\n",
 		q_idx, vma_pages(vma), vma->vm_pgoff);
 
-	return vm_iomap_memory(vma, virt_to_phys(channel->ringbuffer_pages),
+	return vm_iomap_memory(vma, virt_to_phys(ring_buffer),
 			       channel->ringbuffer_pagecount << PAGE_SHIFT);
 }
 
@@ -224,7 +234,7 @@ hv_uio_probe(struct hv_device *dev,
 	/* mem resources */
 	pdata->info.mem[TXRX_RING_MAP].name = "txrx_rings";
 	pdata->info.mem[TXRX_RING_MAP].addr
-		= (uintptr_t)dev->channel->ringbuffer_pages;
+		= (uintptr_t)page_address(dev->channel->ringbuffer_page);
 	pdata->info.mem[TXRX_RING_MAP].size
 		= dev->channel->ringbuffer_pagecount << PAGE_SHIFT;
 	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_LOGICAL;

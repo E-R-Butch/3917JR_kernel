@@ -204,15 +204,22 @@ extern int bitmap_print_to_pagebuf(bool list, char *buf,
 #define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) & (BITS_PER_LONG - 1)))
 #define BITMAP_LAST_WORD_MASK(nbits) (~0UL >> (-(nbits) & (BITS_PER_LONG - 1)))
 
+/*
+ * The static inlines below do not handle constant nbits==0 correctly,
+ * so make such users (should any ever turn up) call the out-of-line
+ * versions.
+ */
 #define small_const_nbits(nbits) \
-	(__builtin_constant_p(nbits) && (nbits) <= BITS_PER_LONG)
+	(__builtin_constant_p(nbits) && (nbits) <= BITS_PER_LONG && (nbits) > 0)
+
+#define bitmap_size(nbits)	(ALIGN(nbits, BITS_PER_LONG) / BITS_PER_BYTE)
 
 static inline void bitmap_zero(unsigned long *dst, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		*dst = 0UL;
 	else {
-		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+		unsigned int len = bitmap_size(nbits);
 		memset(dst, 0, len);
 	}
 }
@@ -222,7 +229,7 @@ static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
 	if (small_const_nbits(nbits))
 		*dst = ~0UL;
 	else {
-		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+		unsigned int len = bitmap_size(nbits);
 		memset(dst, 0xff, len);
 	}
 }
@@ -233,7 +240,7 @@ static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
 	if (small_const_nbits(nbits))
 		*dst = *src;
 	else {
-		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+		unsigned int len = bitmap_size(nbits);
 		memcpy(dst, src, len);
 	}
 }
@@ -247,6 +254,18 @@ static inline void bitmap_copy_clear_tail(unsigned long *dst,
 	bitmap_copy(dst, src, nbits);
 	if (nbits % BITS_PER_LONG)
 		dst[nbits / BITS_PER_LONG] &= BITMAP_LAST_WORD_MASK(nbits);
+}
+
+static inline void bitmap_copy_and_extend(unsigned long *to,
+					  const unsigned long *from,
+					  unsigned int count, unsigned int size)
+{
+	unsigned int copy = BITS_TO_LONGS(count);
+
+	memcpy(to, from, copy * sizeof(long));
+	if (count % BITS_PER_LONG)
+		to[copy - 1] &= BITMAP_LAST_WORD_MASK(count);
+	memset(to + copy, 0, bitmap_size(size) - copy * sizeof(long));
 }
 
 /*
@@ -398,7 +417,7 @@ static __always_inline void bitmap_clear(unsigned long *map, unsigned int start,
 }
 
 static inline void bitmap_shift_right(unsigned long *dst, const unsigned long *src,
-				unsigned int shift, int nbits)
+				unsigned int shift, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		*dst = (*src & BITMAP_LAST_WORD_MASK(nbits)) >> shift;

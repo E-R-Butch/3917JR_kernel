@@ -265,7 +265,9 @@ static int __net_init ipmr_rules_init(struct net *net)
 	return 0;
 
 err2:
+	rtnl_lock();
 	ipmr_free_table(mrt);
+	rtnl_unlock();
 err1:
 	fib_rules_unregister(ops);
 	return err;
@@ -2278,7 +2280,8 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 			rcu_read_unlock();
 			return -ENODEV;
 		}
-		skb2 = skb_clone(skb, GFP_ATOMIC);
+
+		skb2 = skb_realloc_headroom(skb, sizeof(struct iphdr));
 		if (!skb2) {
 			read_unlock(&mrt_lock);
 			rcu_read_unlock();

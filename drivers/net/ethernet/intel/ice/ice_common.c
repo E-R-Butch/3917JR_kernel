@@ -7,16 +7,16 @@
 
 #define ICE_PF_RESET_WAIT_COUNT	200
 
-#define ICE_NIC_FLX_ENTRY(hw, mdid, idx) \
-	wr32((hw), GLFLXP_RXDID_FLX_WRD_##idx(ICE_RXDID_FLEX_NIC), \
+#define ICE_PROG_FLEX_ENTRY(hw, rxdid, mdid, idx) \
+	wr32((hw), GLFLXP_RXDID_FLX_WRD_##idx(rxdid), \
 	     ((ICE_RX_OPC_MDID << \
 	       GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_S) & \
 	      GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_M) | \
 	     (((mdid) << GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_S) & \
 	      GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_M))
 
-#define ICE_NIC_FLX_FLG_ENTRY(hw, flg_0, flg_1, flg_2, flg_3, idx) \
-	wr32((hw), GLFLXP_RXDID_FLAGS(ICE_RXDID_FLEX_NIC, idx), \
+#define ICE_PROG_FLG_ENTRY(hw, rxdid, flg_0, flg_1, flg_2, flg_3, idx) \
+	wr32((hw), GLFLXP_RXDID_FLAGS(rxdid, idx), \
 	     (((flg_0) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_S) & \
 	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_M) | \
 	     (((flg_1) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_1_S) & \
@@ -290,30 +290,85 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 }
 
 /**
- * ice_init_flex_parser - initialize rx flex parser
+ * ice_init_flex_flags
  * @hw: pointer to the hardware structure
+ * @prof_id: Rx Descriptor Builder profile ID
  *
- * Function to initialize flex descriptors
+ * Function to initialize Rx flex flags
  */
-static void ice_init_flex_parser(struct ice_hw *hw)
+static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
 {
 	u8 idx = 0;
 
-	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_HASH_LOW, 0);
-	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_HASH_HIGH, 1);
-	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_FLOW_ID_LOWER, 2);
-	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_FLOW_ID_HIGH, 3);
-	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_PKT_FRG, ICE_RXFLG_UDP_GRE,
-			      ICE_RXFLG_PKT_DSI, ICE_RXFLG_FIN, idx++);
-	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_SYN, ICE_RXFLG_RST,
-			      ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx++);
-	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI,
-			      ICE_RXFLG_EVLAN_x8100, ICE_RXFLG_EVLAN_x9100,
-			      idx++);
-	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_VLAN_x8100, ICE_RXFLG_TNL_VLAN,
-			      ICE_RXFLG_TNL_MAC, ICE_RXFLG_TNL0, idx++);
-	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_TNL1, ICE_RXFLG_TNL2,
-			      ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx);
+	/* Flex-flag fields (0-2) are programmed with FLG64 bits with layout:
+	 * flexiflags0[5:0] - TCP flags, is_packet_fragmented, is_packet_UDP_GRE
+	 * flexiflags1[3:0] - Not used for flag programming
+	 * flexiflags2[7:0] - Tunnel and VLAN types
+	 * 2 invalid fields in last index
+	 */
+	switch (prof_id) {
+	/* Rx flex flags are currently programmed for the NIC profiles only.
+	 * Different flag bit programming configurations can be added per
+	 * profile as needed.
+	 */
+	case ICE_RXDID_FLEX_NIC:
+	case ICE_RXDID_FLEX_NIC_2:
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_PKT_FRG,
+				   ICE_RXFLG_UDP_GRE, ICE_RXFLG_PKT_DSI,
+				   ICE_RXFLG_FIN, idx++);
+		/* flex flag 1 is not used for flexi-flag programming, skipping
+		 * these four FLG64 bits.
+		 */
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_SYN, ICE_RXFLG_RST,
+				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_PKT_DSI,
+				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_EVLAN_x8100,
+				   ICE_RXFLG_EVLAN_x9100, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_VLAN_x8100,
+				   ICE_RXFLG_TNL_VLAN, ICE_RXFLG_TNL_MAC,
+				   ICE_RXFLG_TNL0, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_TNL1, ICE_RXFLG_TNL2,
+				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx);
+		break;
+
+	default:
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Flag programming for profile ID %d not supported\n",
+			  prof_id);
+	}
+}
+
+/**
+ * ice_init_flex_flds
+ * @hw: pointer to the hardware structure
+ * @prof_id: Rx Descriptor Builder profile ID
+ *
+ * Function to initialize flex descriptors
+ */
+static void ice_init_flex_flds(struct ice_hw *hw, enum ice_rxdid prof_id)
+{
+	enum ice_flex_rx_mdid mdid;
+
+	switch (prof_id) {
+	case ICE_RXDID_FLEX_NIC:
+	case ICE_RXDID_FLEX_NIC_2:
+		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_HASH_LOW, 0);
+		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_HASH_HIGH, 1);
+		ICE_PROG_FLEX_ENTRY(hw, prof_id, ICE_RX_MDID_FLOW_ID_LOWER, 2);
+
+		mdid = (prof_id == ICE_RXDID_FLEX_NIC_2) ?
+			ICE_RX_MDID_SRC_VSI : ICE_RX_MDID_FLOW_ID_HIGH;
+
+		ICE_PROG_FLEX_ENTRY(hw, prof_id, mdid, 3);
+
+		ice_init_flex_flags(hw, prof_id);
+		break;
+
+	default:
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Field init for profile ID %d not supported\n",
+			  prof_id);
+	}
 }
 
 /**
@@ -494,7 +549,8 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
 
-	ice_init_flex_parser(hw);
+	ice_init_flex_flds(hw, ICE_RXDID_FLEX_NIC);
+	ice_init_flex_flds(hw, ICE_RXDID_FLEX_NIC_2);
 
 	return 0;
 
@@ -904,7 +960,22 @@ enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading)
  * @timeout: the maximum time in ms that the driver may hold the resource
  * @cd: pointer to command details structure or NULL
  *
- * requests common resource using the admin queue commands (0x0008)
+ * Requests common resource using the admin queue commands (0x0008).
+ * When attempting to acquire the Global Config Lock, the driver can
+ * learn of three states:
+ *  1) ICE_SUCCESS -        acquired lock, and can perform download package
+ *  2) ICE_ERR_AQ_ERROR -   did not get lock, driver should fail to load
+ *  3) ICE_ERR_AQ_NO_WORK - did not get lock, but another driver has
+ *                          successfully downloaded the package; the driver does
+ *                          not have to download the package and can continue
+ *                          loading
+ *
+ * Note that if the caller is in an acquire lock, perform action, release lock
+ * phase of operation, it is possible that the FW may detect a timeout and issue
+ * a CORER. In this case, the driver will receive a CORER interrupt and will
+ * have to determine its cause. The calling thread that is handling this flow
+ * will likely get an error propagated back to it indicating the Download
+ * Package, Update Package or the Release Resource AQ commands timed out.
  */
 static enum ice_status
 ice_aq_req_res(struct ice_hw *hw, enum ice_aq_res_ids res,
@@ -922,13 +993,43 @@ ice_aq_req_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 	cmd_resp->res_id = cpu_to_le16(res);
 	cmd_resp->access_type = cpu_to_le16(access);
 	cmd_resp->res_number = cpu_to_le32(sdp_number);
+	cmd_resp->timeout = cpu_to_le32(*timeout);
+	*timeout = 0;
 
 	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+
 	/* The completion specifies the maximum time in ms that the driver
 	 * may hold the resource in the Timeout field.
-	 * If the resource is held by someone else, the command completes with
-	 * busy return value and the timeout field indicates the maximum time
-	 * the current owner of the resource has to free it.
+	 */
+
+	/* Global config lock response utilizes an additional status field.
+	 *
+	 * If the Global config lock resource is held by some other driver, the
+	 * command completes with ICE_AQ_RES_GLBL_IN_PROG in the status field
+	 * and the timeout field indicates the maximum time the current owner
+	 * of the resource has to free it.
+	 */
+	if (res == ICE_GLOBAL_CFG_LOCK_RES_ID) {
+		if (le16_to_cpu(cmd_resp->status) == ICE_AQ_RES_GLBL_SUCCESS) {
+			*timeout = le32_to_cpu(cmd_resp->timeout);
+			return 0;
+		} else if (le16_to_cpu(cmd_resp->status) ==
+			   ICE_AQ_RES_GLBL_IN_PROG) {
+			*timeout = le32_to_cpu(cmd_resp->timeout);
+			return ICE_ERR_AQ_ERROR;
+		} else if (le16_to_cpu(cmd_resp->status) ==
+			   ICE_AQ_RES_GLBL_DONE) {
+			return ICE_ERR_AQ_NO_WORK;
+		}
+
+		/* invalid FW response, force a timeout immediately */
+		*timeout = 0;
+		return ICE_ERR_AQ_ERROR;
+	}
+
+	/* If the resource is held by some other driver, the command completes
+	 * with a busy return value and the timeout field indicates the maximum
+	 * time the current owner of the resource has to free it.
 	 */
 	if (!status || hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY)
 		*timeout = le32_to_cpu(cmd_resp->timeout);
@@ -967,30 +1068,28 @@ ice_aq_release_res(struct ice_hw *hw, enum ice_aq_res_ids res, u8 sdp_number,
  * @hw: pointer to the HW structure
  * @res: resource id
  * @access: access type (read or write)
+ * @timeout: timeout in milliseconds
  *
  * This function will attempt to acquire the ownership of a resource.
  */
 enum ice_status
 ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
-		enum ice_aq_res_access_type access)
+		enum ice_aq_res_access_type access, u32 timeout)
 {
 #define ICE_RES_POLLING_DELAY_MS	10
 	u32 delay = ICE_RES_POLLING_DELAY_MS;
+	u32 time_left = timeout;
 	enum ice_status status;
-	u32 time_left = 0;
-	u32 timeout;
 
 	status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
-	/* An admin queue return code of ICE_AQ_RC_EEXIST means that another
-	 * driver has previously acquired the resource and performed any
-	 * necessary updates; in this case the caller does not obtain the
-	 * resource and has no further work to do.
+	/* A return code of ICE_ERR_AQ_NO_WORK means that another driver has
+	 * previously acquired the resource and performed any necessary updates;
+	 * in this case the caller does not obtain the resource and has no
+	 * further work to do.
 	 */
-	if (hw->adminq.sq_last_status == ICE_AQ_RC_EEXIST) {
-		status = ICE_ERR_AQ_NO_WORK;
+	if (status == ICE_ERR_AQ_NO_WORK)
 		goto ice_acquire_res_exit;
-	}
 
 	if (status)
 		ice_debug(hw, ICE_DBG_RES,
@@ -1003,11 +1102,9 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		timeout = (timeout > delay) ? timeout - delay : 0;
 		status = ice_aq_req_res(hw, res, access, 0, &time_left, NULL);
 
-		if (hw->adminq.sq_last_status == ICE_AQ_RC_EEXIST) {
+		if (status == ICE_ERR_AQ_NO_WORK)
 			/* lock free, but no work to do */
-			status = ICE_ERR_AQ_NO_WORK;
 			break;
-		}
 
 		if (!status)
 			/* lock acquired */
