@@ -1348,8 +1348,6 @@ static inline int check_modstruct_version(const struct load_info *info,
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
-	/* gaea: 跳过厂商模块 CRC 校验 */
-	return 1;
 	if (has_crcs) {
 		amagic += strcspn(amagic, " ");
 		bmagic += strcspn(bmagic, " ");
