@@ -333,9 +333,6 @@ enum dsi_cmd_set_type {
 #if defined(CONFIG_PXLW_IRIS3)
 	DSI_CMD_SET_ABYP,
 #endif
-	/* 3917JR: 原厂 DT 用 qcom,mdss-dsi-hbm-on/off（无 -command 后缀） */
-	DSI_CMD_SET_HBM,
-	DSI_CMD_SET_HBM_OFF,
 	DSI_CMD_SET_MAX
 };
 

@@ -27,7 +27,6 @@
 #include <linux/types.h>
 
 #include "dsi_display.h"
-#include "dsi_defs.h"
 #include "dsi_panel_mi.h"
 #include "dsi_mi_feature.h"
 
@@ -71,13 +70,12 @@ static int yl_hbm_apply(bool on)
 	hbm_mode = on;
 
 	if (!panel) {
-		pr_warn("no active panel, hbm_mode = %d\n", on);
+		pr_warn("no active panel, hbm_mode = %d (deferred to next write)\n", on);
 		return -ENODEV;
 	}
 
-	/* 设备 DT 用标准高通命令集 qcom,mdss-dsi-hbm-on/off（无 -command 后缀） */
-	return dsi_panel_tx_cmd_set(panel,
-			on ? DSI_CMD_SET_HBM : DSI_CMD_SET_HBM_OFF);
+	return dsi_panel_disp_param_set(panel,
+			on ? DISPPARAM_HBM_FOD_ON : DISPPARAM_HBM_FOD_OFF);
 }
 
 static ssize_t status_show(struct device *dev, struct device_attribute *attr, char *buf)

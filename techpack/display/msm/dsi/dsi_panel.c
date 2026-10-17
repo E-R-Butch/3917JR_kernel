@@ -1893,8 +1893,6 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	[DSI_CMD_SET_ABYP] = "iris,abyp-panel-command",
 #endif
 
-	[DSI_CMD_SET_HBM] = "qcom,mdss-dsi-hbm-on",
-	[DSI_CMD_SET_HBM_OFF] = "qcom,mdss-dsi-hbm-off",
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -1962,8 +1960,6 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 #if defined(CONFIG_PXLW_IRIS3)
 	[DSI_CMD_SET_ABYP] = "iris,abyp-panel-command-state",
 #endif
-	[DSI_CMD_SET_HBM] = "qcom,mdss-dsi-hbm-on-state",
-	[DSI_CMD_SET_HBM_OFF] = "qcom,mdss-dsi-hbm-off-state",
 };
 
 int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)
