@@ -101,6 +101,7 @@ msm_drm-$(CONFIG_DRM_MSM_DSI) += dsi/dsi_phy.o \
 	dsi/dsi_display_test.o \
 	dsi/dsi_display_mi.o \
 	dsi/dsi_panel_mi.o \
+yl_display_hbm.o \
 
 msm_drm-$(CONFIG_DSI_PARSER) += dsi/dsi_parser.o \
 
