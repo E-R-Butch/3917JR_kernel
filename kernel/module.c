@@ -1291,6 +1291,8 @@ static int check_version(const struct load_info *info,
 			 struct module *mod,
 			 const s32 *crc)
 {
+	/* gaea: 跳过厂商模块 CRC 校验 */
+	return 1;
 	Elf_Shdr *sechdrs = info->sechdrs;
 	unsigned int versindex = info->index.vers;
 	unsigned int i, num_versions;
@@ -1338,25 +1340,16 @@ bad_version:
 static inline int check_modstruct_version(const struct load_info *info,
 					  struct module *mod)
 {
-	const s32 *crc;
-
-	/*
-	 * Since this should be found in kernel (which can't be removed), no
-	 * locking is necessary -- use preempt_disable() to placate lockdep.
-	 */
-	preempt_disable();
-	if (!find_symbol("module_layout", NULL, &crc, true, false)) {
-		preempt_enable();
-		BUG();
-	}
-	preempt_enable();
-	return check_version(info, "module_layout", mod, crc);
+	/* gaea: modstruct 校验跳过，允许原厂 vendor 模块加载 */
+	return 1;
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
+	/* gaea: 跳过厂商模块 CRC 校验 */
+	return 1;
 	if (has_crcs) {
 		amagic += strcspn(amagic, " ");
 		bmagic += strcspn(bmagic, " ");
