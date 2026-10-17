@@ -64,3 +64,6 @@ modules.order
 *.orig
 *.rej
 *~
+
+# 内核模块签名私钥/证书，绝不入库（公开仓库）
+certs/*.pem
