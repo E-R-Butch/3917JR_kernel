@@ -168,7 +168,7 @@ else
 	# LOCALVERSION= is not specified
 	if test "${LOCALVERSION+set}" != "set"; then
 		scm=$(scm_version --short)
-		res="$res${scm:++}"
+		# 3917JR: 不再追加 "+"（版本串由 CONFIG_LOCALVERSION 决定）
 	fi
 fi
 
