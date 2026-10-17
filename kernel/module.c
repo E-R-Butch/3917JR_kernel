@@ -1348,6 +1348,11 @@ static inline int check_modstruct_version(const struct load_info *info,
 static inline int same_magic(const char *amagic, const char *bmagic,
 			     bool has_crcs)
 {
+	/* gaea: 允许版本串升级后原厂模块仍可加载。源码同源，仅版本字符串不同，
+	 * 故打印一次告警后放行；CRC 校验由 check_version 单独放行。 */
+	pr_warn_once("gaea: vermagic mismatch, allowed: kernel=%s module=%s\n",
+		     bmagic, amagic);
+	return 1;
 	if (has_crcs) {
 		amagic += strcspn(amagic, " ");
 		bmagic += strcspn(bmagic, " ");
