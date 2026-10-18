@@ -22,11 +22,14 @@ Everything below is verified on device; see `R33-BASELINE.md` and `reference/`.
 | Container features (DroidSpaces) | **done** | `SYSVIPC`, `*_NS`, `CGROUP_*`, `CFS_BANDWIDTH`, `VETH`, `NF_TABLES` enabled; `ANDROID_PARANOID_NETWORK` off. |
 | Crash forensics | **done** | `service.d/gaea-logd.sh` snapshots dmesg/logcat/state into `/cache/gaea-log/` every 20 s. |
 
-**Rule learned the hard way:** the reported `uname -r` must stay `4.19.81-perf+`.
-Changing it makes the stock display HAL take a different path (duplicate VSYNC →
-visible flicker), even though vendor modules would still load. Version upgrades
-must therefore change the *code*, not the *reported string*; identify builds via
-`/proc/version` (`#33`) and `KBUILD_BUILD_USER/HOST`.
+**Corrected 2026-10-18:** an earlier revision of this file claimed `uname -r` had to stay
+`4.19.81-perf+`. **That was a misdiagnosis.** Scanning `/vendor` and `/system` shows no display
+component reads the release string (`uname` only appears in libchrome / libdsutils / libllvm-* /
+librs_adreno and in busybox applets). A clean A/B — R34 (`4.19.81-gaea-R34`, same source and
+config as R33, only `CONFIG_LOCALVERSION` changed) — loads all 33 modules and shows no brightness
+flash. The real cause of the flash was the DCS byte order, fixed in R30.
+Version strings are free; identify builds via `/proc/version` (`#NN`) and `KBUILD_BUILD_USER/HOST`.
+Details: `reference/VERSION-LOCK-MYTH.md`.
 
 ---
 
