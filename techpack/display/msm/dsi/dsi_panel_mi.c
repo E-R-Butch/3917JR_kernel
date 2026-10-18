@@ -46,8 +46,13 @@ int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 	mi_cfg->dsi_panel = panel;
 	g_panel = panel;
 
-	mi_cfg->bl_is_big_endian = utils->read_bool(utils->data,
-			"mi,mdss-dsi-bl-dcs-big-endian-type");
+	/*
+	 * 3917JR: 原厂 PT 路径下发 51 02 A2（大端）；ABYP 下亮度走通用 MIPI DCS
+	 * 路径，默认小端会发 51 A2 02，表现为每次亮度变化都爆闪。
+	 * 面板在 DTBO 的 fragment 里，生效 DT 中取不到该属性（实测 overlay 未并入），
+	 * 故这里直接按原厂行为取大端。
+	 */
+	mi_cfg->bl_is_big_endian = true;
 
 	mi_cfg->mi_feature_enabled = utils->read_bool(of_node,
 			"mi,feature-enabled");
