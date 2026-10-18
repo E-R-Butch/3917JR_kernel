@@ -1,83 +1,81 @@
-# Maintenance roadmap
+# Roadmap — Gaea (3917JR / SM7250) kernel
 
-R16 remains the golden recovery baseline throughout this work. The roadmap
-separates source preservation, stable updates, functional configuration, and
-CIP adoption so a regression can be assigned to one class of change.
+Last updated: 2026-10-18, at baseline **R33** (`4.19.81-perf+ #33`).
 
-## Phase 0 — freeze the baseline
+Status legend: **done** / **next** / **later** / **blocked**
 
-- Preserve the exact R16 source and configuration in Git.
-- Reconstruct a pinned Clang r365631c/binutils 2.34 builder.
-- Recover and version the external-module build recipes and RAM-boot packager.
-- Decide the release signing-key policy.
-- Complete a no-source-change rebuild and the full RAM-boot matrix.
+---
 
-Exit condition: a clean environment can produce a functionally equivalent R16
-candidate with documented ABI and artifact identities.
+## Phase A — Usability (done, baseline R33)
 
-## Phase 1 — prove the stable merge mechanism
+Everything below is verified on device; see `R33-BASELINE.md` and `reference/`.
 
-- Merge only upstream `v4.19.82`.
-- Resolve conflicts without enabling new features.
-- Rebuild and sign all external modules.
-- Complete the offline and critical on-device gates.
+| Item | State | Notes |
+|---|---|---|
+| Display resume (screen would not wake) | **done** | Root cause was the HBM patch sending raw DSI commands (`dsi_panel_tx_cmd_set`) from the FOD path, corrupting the command queue → `PANEL_DEAD`. Reverted to `dsi_panel_disp_param_set`. |
+| Brightness flash on every brightness change | **done** | Xiaomi `mi_cfg` defaults to little-endian; stock sends big-endian (`51 02 A2`). Forced `bl_is_big_endian = true`. See `reference/STOCK-DISPLAY-PATH.md`. |
+| Stock vendor modules loading | **done** | version string pinned to `4.19.81-perf+`; `same_magic` warns-and-allows; CRC checks skipped (`check_version`, `check_modstruct_version`); `yl_params_kernel_read` implemented. |
+| WiFi | **done** | `wlan0` up, ICMP OK. Required the module-loading work above. |
+| Audio (RT1011) | **done** | Driver was never in the insmod list. Fixed on the Magisk side: module `audio_3917jr` + `post-fs-data.d/audio-rt1011.sh`. See `reference/AUDIO-RT1011.md`. |
+| NFC (NXP PN553) | **done** | Ported from `NXPNFCProject/NXPNFC_I2CDriver` (`pn8xT/pn553-i2c`) + 4.19 API fixes. `/dev/pn553`, tag detection verified. See `reference/NFC-PN553.md`. |
+| TUN/TAP | **done** | Driver and `CONFIG_TUN=y` were present; only `/dev/net/tun` was missing. Created by `post-fs-data.d/tun-node.sh`. |
+| Container features (DroidSpaces) | **done** | `SYSVIPC`, `*_NS`, `CGROUP_*`, `CFS_BANDWIDTH`, `VETH`, `NF_TABLES` enabled; `ANDROID_PARANOID_NETWORK` off. |
+| Crash forensics | **done** | `service.d/gaea-logd.sh` snapshots dmesg/logcat/state into `/cache/gaea-log/` every 20 s. |
 
-Exit condition: the single-sublevel update behaves exactly like R16 in all
-golden functions.
+**Rule learned the hard way:** the reported `uname -r` must stay `4.19.81-perf+`.
+Changing it makes the stock display HAL take a different path (duplicate VSYNC →
+visible flicker), even though vendor modules would still load. Version upgrades
+must therefore change the *code*, not the *reported string*; identify builds via
+`/proc/version` (`#33`) and `KBUILD_BUILD_USER/HOST`.
 
-## Phase 2 — incremental upstream 4.19 stable
+---
 
-Integrate small, reviewable sublevel ranges. Build at every range and schedule
-full RAM-boot milestones at approximately:
+## Phase B — Whitepaper milestones
 
-```text
-4.19.100 -> 4.19.150 -> 4.19.200 -> 4.19.250 -> 4.19.294 -> 4.19.325
-```
+Order is fixed: **R3 → R4 → R2 → R5 (branch only) → R1 (last)**.
 
-Google's SM7250/redbull 4.19 work may be consulted as a conflict-resolution
-reference around 4.19.294, but it is not a drop-in base: its Android version,
-repository split, DT, KMI assumptions, and userspace contract differ from this
-Android 10 device.
+### R3 — Container capability (done)
+Covered by Phase A. DroidSpaces self-check green, TUN/TAP included.
 
-Exit condition: upstream 4.19.325 passes the complete matrix with no persistent
-boot changes.
+### R4 — Thermal interface (next)
+Goal: let a userspace tuner (Scene / Femind) own scheduling without the kernel or
+vendor daemons fighting it.
 
-## Phase 3 — container feature set P1
+Already established on device:
+- 100 thermal zones exist, trips are already `125000` (hardware max).
+- Kernel policy is `user_space` for the enabled zones.
+- Cooling devices idle (`cur_state = 0`).
+- Measured 10 minutes at full load with **zero** frequency write-back while
+  `thermal-engine` and `perf-hal-2-1` were running and the SoC sat at ~42 °C.
+- Enabled zones must stay at 2 (86/88). Enabling all 100 breaks `thermal-engine`
+  with a NULL deref in `thermal_sensor_get_trip_temp` → crash loop.
 
-Apply `configs/fragments/container-p1.config` as a separate commit and let
-`olddefconfig` resolve dependencies. Validate the resulting `.config`, not only
-the input fragment.
+Remaining work:
+- Define the switchable surface (zones / cooling devices / `kgsl thermal_pwrlevel`)
+  and document it for the Femind Magisk backend (`THERMAL-SWITCHES.md`).
+- Decide whether to expose a single kernel-side toggle or keep it userspace.
 
-The intended first set is:
+### R2 — LTS upgrade (later, largest)
+- Merge 4.19 sublevels in reviewable ranges; keep `SUBLEVEL`/`LOCALVERSION`
+  pinned so the reported string stays `4.19.81-perf+` (see Phase A rule).
+- Cover the gap noted earlier: patches up to 4.19.325 are not fully applied.
+- Module signature: recovering the vendor key from a signed `.ko` PKCS#7 trailer
+  would allow `MODULE_SIG_FORCE=y` again.
 
-- complete nftables inet/IPv4/IPv6 NAT primitives;
-- CFS bandwidth control;
-- block-I/O throttling;
-- ext4 POSIX ACL support for an ext4 loop-backed Docker data path.
+### R5 — Overclocking (later, branch only)
+Separate branch, never merged into the daily baseline. Not started.
 
-Do not combine pidfd/clone3 backports, a forced cgroup-v2 conversion, OverlayFS
-fscrypt semantic changes, rootless user namespaces, or a modern BTF/CO-RE stack
-with P1.
+### R1 — Root hiding (last)
+Deferred by policy: keep `IKCONFIG_PROC`, `KALLSYMS_ALL`, `DEBUG_INFO` on until
+the final image, then collapse them in one pass.
 
-## Phase 4 — CIP checkpoints
+---
 
-After 4.19.325 is stable, evaluate the locally audited CIP sequence in stages:
+## Phase C — Known gaps / unowned
 
-```text
-4.19.325-cip116 -> cip120 -> cip125 -> cip130 -> cip135
-```
-
-These are checkpoints, not a claim that `cip135` is the newest available tag.
-Refresh the official CIP tag list and security scope immediately before each
-merge. Keep each CIP range bisectable and apply the same module and RAM-boot
-gates as an upstream stable update.
-
-## Later, evidence-driven features
-
-Only add these when a real workload requires them and a dedicated test exists:
-
-- WireGuard compat module or in-tree backport;
-- pidfd/clone3 and related UAPI backports;
-- additional cgroup delegation work;
-- rootless containers;
-- CRIU or expanded container networking.
+| Item | State | Note |
+|---|---|---|
+| HBM (under-display bright region) | **blocked** | Current driver is the reverted no-op; the MI feature gate blocks `disp_param_set`. Redo with the DRM-committed path only. |
+| RT1011 per-unit calibration | **blocked** | `params` partition is empty (22 non-zero bytes: `DEVICE` / `V1160910LITO` / `LITO`). Stock behaves identically. Tune via ALSA DRC/EQ controls instead. See `reference/PARAMS-PARTITION.md`. |
+| Femind frontend (Liquid Glass UI) | **later** | Built and installed (`me.sinclair.femind.gaea`), never accepted on a working display. |
+| DTBO property injection | **blocked** | Panel node lives in DTBO `dtbo_idx=13`; adding properties to the DTBO image parses but the overlay is not merged into the live tree. Driver-side forcing used instead. |
