@@ -27,6 +27,8 @@
 #include <linux/types.h>
 
 #include "dsi_display.h"
+#include "dsi_panel.h"
+#include "dsi_defs.h"
 #include "dsi_panel_mi.h"
 #include "dsi_mi_feature.h"
 
@@ -62,20 +64,43 @@ static struct dsi_panel *yl_hbm_active_panel(void)
 	return NULL;
 }
 
-/* 把 HBM 状态交给既有面板参数通路 */
+/*
+ * 把 HBM 状态交给面板命令通路。
+ *
+ * 必须持 panel_lock：dsi_panel_tx_cmd_set() 自身不加锁，dsi_panel_disp_param_set()
+ * 是全程持锁的。R24 之前那版直接裸发命令，指纹 HAL 连续请求时与显示线程交错，
+ * 打乱 DSI 命令队列 -> DSI_CMD_SET_ON 超时 / TE 丢失 -> PANEL_DEAD。
+ */
 static int yl_hbm_apply(bool on)
 {
 	struct dsi_panel *panel = yl_hbm_active_panel();
+	int rc;
 
 	hbm_mode = on;
 
 	if (!panel) {
-		pr_warn("no active panel, hbm_mode = %d (deferred to next write)\n", on);
+		pr_warn("no active panel, hbm_mode = %d\n", on);
 		return -ENODEV;
 	}
 
-	return dsi_panel_disp_param_set(panel,
-			on ? DISPPARAM_HBM_FOD_ON : DISPPARAM_HBM_FOD_OFF);
+	dsi_panel_acquire_panel_lock(panel);
+
+	if (!panel->panel_initialized) {
+		dsi_panel_release_panel_lock(panel);
+		pr_warn("panel not initialized, skip hbm=%d\n", on);
+		return -EAGAIN;
+	}
+
+	/* 设备 DT 用标准高通命令集 qcom,mdss-dsi-hbm-on/off（无 -command 后缀） */
+	rc = dsi_panel_tx_cmd_set(panel,
+			on ? DSI_CMD_SET_HBM : DSI_CMD_SET_HBM_OFF);
+
+	dsi_panel_release_panel_lock(panel);
+
+	if (rc)
+		pr_err("tx hbm cmd on=%d failed rc=%d\n", on, rc);
+
+	return rc;
 }
 
 static ssize_t status_show(struct device *dev, struct device_attribute *attr, char *buf)
