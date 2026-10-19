@@ -91,9 +91,32 @@ static int yl_hbm_apply(bool on)
 		return -EAGAIN;
 	}
 
-	/* 设备 DT 用标准高通命令集 qcom,mdss-dsi-hbm-on/off（无 -command 后缀） */
-	rc = dsi_panel_tx_cmd_set(panel,
-			on ? DSI_CMD_SET_HBM : DSI_CMD_SET_HBM_OFF);
+	if (on) {
+		/*
+		 * DT: qcom,mdss-dsi-hbm-on = <... 03 51 01 FF ...>
+		 *     DCS 0x51（写显示亮度）= 0x01FF，把屏推到高亮档。
+		 */
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_HBM);
+	} else {
+		/*
+		 * 原厂实现（stock-Image 反汇编 dsi_panel_hbm_onoff @0xd1819c8）：
+		 *   关 = dsi_panel_hbm_off(panel)  → 把亮度写回 bl_level
+		 *      + dsi_panel_hbm_switch(panel, 24) → 发 cmd_sets[24]（qcom,mdss-dsi-hbm-off）
+		 * 两步都要。只发 hbm-off（0xFE 00 + 0x83 00，LCD 背光关）在 AMOLED 上是空操作；
+		 * 只回写亮度则面板仍停在 hbm-on 写入的 0x51=0x1FF 高亮态。
+		 */
+		u32 restore = panel->bl_config.bl_level;
+
+		if (!restore)
+			restore = panel->mi_cfg.bl_last_level;
+
+		rc = dsi_panel_set_backlight(panel, restore);
+		pr_info("hbm off: restore backlight level = %u rc=%d\n", restore, rc);
+
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_HBM_OFF);
+		if (rc)
+			pr_err("hbm off: tx hbm-off cmd failed rc=%d\n", rc);
+	}
 
 	dsi_panel_release_panel_lock(panel);
 
