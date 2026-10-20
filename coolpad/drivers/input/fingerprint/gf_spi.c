@@ -35,6 +35,7 @@ static void gf_disable_irq(struct gf_dev *d)
 }
 static irqreturn_t gf_irq(int irq, void *arg)
 {
+    pr_info("gf_irq: fired irq=%d\n", irq);
     struct gf_dev *d = arg;
     char msg = GF_NET_EVENT_IRQ;
     __pm_wakeup_event(&d->wake, 500);
@@ -108,6 +109,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         ret = -ENODEV;
         goto out;
     }
+    pr_info("gf_ioctl: cmd=0x%x nr=%u\n", cmd, _IOC_NR(cmd));
     switch (cmd) {
     case GF_IOC_INIT:
         ret = copy_to_user(ptr, &route, sizeof(route)) ? -EFAULT : 0;
@@ -248,6 +250,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
         !READ_ONCE(d->device_available))
         return NOTIFY_DONE;
     blank = *(int *)ev->data;
+    pr_info("gf_fb: event=%lu blank=%d\n", event, blank);
     if (blank == FB_BLANK_POWERDOWN)
         msg = GF_NET_EVENT_FB_BLACK;
     else if (blank == FB_BLANK_UNBLANK)
