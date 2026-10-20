@@ -2046,16 +2046,16 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	fts_reset_proc(200);
 #endif
 
-	/* 原厂 probe 在这里等 IC 就绪（日志 "TP Ready, Device ID:0x%02x%02x"）。
-	 * 我们的重建版没调这一句，导致 IRQ 已注册但 IC 未就绪：触摸/FOD 全程无事件。
-	 */
-	fts_wait_tp_to_valid();
-
 	ret = fts_get_ic_information(ts_data);
 	if (ret) {
 		FTS_ERROR("not focal IC, unregister driver");
 		goto err_irq_req;
 	}
+
+	/* 原厂在 chip id 确定后才等 TP 就绪（日志 "TP Ready, Device ID:0x%02x%02x"）。
+	 * 放在 get_ic_information 之前时期望值还是 0，永远等不到。
+	 */
+	fts_wait_tp_to_valid();
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_FTS_FW_UPDATE)
 	ret = fts_create_apk_debug_channel(ts_data);
