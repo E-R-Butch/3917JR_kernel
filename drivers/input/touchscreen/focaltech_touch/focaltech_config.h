@@ -159,6 +159,14 @@
 #define FTS_GESTURE_EN                          1
 
 /*
+ * FOD (finger on display) key reporting
+ * 1: report EV_KEY 508/509 for the vendor FOD packet (stock behaviour)
+ * default: enable on this device, without it the keyguard never starts
+ *          a fingerprint auth session in software
+ */
+#define FTS_FOD_KEY_EN                          1
+
+/*
  * ESD check & protection
  * default: disable
  */

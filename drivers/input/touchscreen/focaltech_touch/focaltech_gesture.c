@@ -67,6 +67,13 @@
 #define GESTURE_V                               0x54
 #define GESTURE_Z                               0x41
 #define GESTURE_C                               0x34
+/*
+ * 原厂 FOD 手势号（stock-Image fts_gesture_readdata 跳转表 index 84 / 39）：
+ * 0x54 = FOD 按下（-> EV_KEY 508），0x27 = FOD 抬起（-> EV_KEY 509）。
+ * 通用 FTS 表里 0x54 是字母 "V"，在这台机器上是 FOD，必须让位。
+ */
+#define GESTURE_FOD_PRESS                       0x54
+#define GESTURE_FOD_RELEASE                     0x27
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -260,8 +267,12 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 		gesture = KEY_GESTURE_S;
 		break;
 
-	case GESTURE_V:
-		gesture = KEY_GESTURE_V;
+	case GESTURE_FOD_PRESS:
+		gesture = KEY_FOD_DOWN;
+		break;
+
+	case GESTURE_FOD_RELEASE:
+		gesture = KEY_FOD_UP;
 		break;
 
 	case GESTURE_Z:
@@ -444,6 +455,9 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_V);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_Z);
 	input_set_capability(input_dev, EV_KEY, KEY_GESTURE_C);
+	/* 原厂 fts_gesture_init 末尾同样声明这两个 FOD 键（0x1fc/0x1fd） */
+	input_set_capability(input_dev, EV_KEY, KEY_FOD_DOWN);
+	input_set_capability(input_dev, EV_KEY, KEY_FOD_UP);
 
 	__set_bit(KEY_GESTURE_RIGHT, input_dev->keybit);
 	__set_bit(KEY_GESTURE_LEFT, input_dev->keybit);
@@ -459,6 +473,8 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
 	__set_bit(KEY_GESTURE_V, input_dev->keybit);
 	__set_bit(KEY_GESTURE_C, input_dev->keybit);
 	__set_bit(KEY_GESTURE_Z, input_dev->keybit);
+	__set_bit(KEY_FOD_DOWN, input_dev->keybit);
+	__set_bit(KEY_FOD_UP, input_dev->keybit);
 
 	fts_create_gesture_sysfs(ts_data->dev);
 

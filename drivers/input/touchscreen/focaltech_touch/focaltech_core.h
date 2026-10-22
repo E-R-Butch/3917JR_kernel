@@ -86,6 +86,17 @@
 #define FTS_TOUCH_POINT_NUM                 2
 #define FTS_TOUCH_EVENT_POS                 3
 #define FTS_TOUCH_ID_POS                    5
+/*
+ * 原厂 FOD 报文标志位（对照 stock-Image fts_irq_handler+0xb4：
+ * ldrb w8,[point_buf,#1] 后与 1/2 比较）。
+ * buf[1] == 1 -> FOD 按下，== 2 -> FOD 抬起。
+ */
+#define FTS_TOUCH_FOD_POS                   1
+#define FTS_FOD_EVT_DOWN                    0x01
+#define FTS_FOD_EVT_UP                      0x02
+/* 原厂 fts_gesture_init 里 input_set_capability 的 EV_KEY 0x1fc/0x1fd */
+#define KEY_FOD_DOWN                        508
+#define KEY_FOD_UP                          509
 #define FTS_COORDS_ARR_SIZE                 4
 #define FTS_X_MIN_DISPLAY_DEFAULT           0
 #define FTS_Y_MIN_DISPLAY_DEFAULT           0

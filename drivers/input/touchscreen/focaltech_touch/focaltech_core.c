@@ -682,6 +682,42 @@ static int fts_input_report_a(struct fts_ts_data *data)
 }
 #endif
 
+#if FTS_FOD_KEY_EN
+/*
+ * 原厂 FOD 按键上报（对照 stock-Image fts_irq_handler+0xb4..0x140）：
+ * 每次读完触摸报文后看 buf[1]：
+ *   0x01 = FOD 按下 -> 上报 EV_KEY 508 的「脉冲」（按下状态未置位时才发）
+ *   0x02 = FOD 抬起 -> 上报 EV_KEY 509 的「脉冲」并复位状态
+ * Android 侧把这个 508 映射成 keycode 243，SystemUI 的
+ * StatusBar.dispatchKeyEvent -> handleFingerprintAuth -> startFingerprintAuth
+ * 才是 setHbm(1)/downOrUp(1) 的唯一触发源；缺了它锁屏按 FOD 只会收到抬起事件。
+ */
+static void fts_fod_key_report(struct fts_ts_data *data, const u8 *buf)
+{
+	static bool fod_pressed;
+	struct input_dev *input_dev = data->input_dev;
+	u8 ev = buf[FTS_TOUCH_FOD_POS];
+
+	if (ev == FTS_FOD_EVT_DOWN) {
+		if (fod_pressed)
+			return;
+		fod_pressed = true;
+		input_report_key(input_dev, KEY_FOD_DOWN, 1);
+		input_sync(input_dev);
+		input_report_key(input_dev, KEY_FOD_DOWN, 0);
+		input_sync(input_dev);
+		FTS_INFO("fod key: press (buf[1]=0x%02x)", ev);
+	} else if (ev == FTS_FOD_EVT_UP) {
+		fod_pressed = false;
+		input_report_key(input_dev, KEY_FOD_UP, 1);
+		input_sync(input_dev);
+		input_report_key(input_dev, KEY_FOD_UP, 0);
+		input_sync(input_dev);
+		FTS_INFO("fod key: release (buf[1]=0x%02x)", ev);
+	}
+}
+#endif
+
 static int fts_read_touchdata(struct fts_ts_data *data)
 {
 	int ret = 0;
@@ -713,6 +749,10 @@ static int fts_read_touchdata(struct fts_ts_data *data)
 		FTS_ERROR("read touchdata failed, ret:%d", ret);
 		return ret;
 	}
+
+#if FTS_FOD_KEY_EN
+	fts_fod_key_report(data, buf);
+#endif
 
 	if (data->log_level >= 3) {
 		fts_show_touch_buffer(buf, data->pnt_buf_size);
