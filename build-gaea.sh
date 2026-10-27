@@ -22,6 +22,7 @@ esac
 
 cd /root/kernel || exit 9
 echo "== 配置 =="
+scripts/config --file /root/kbuild/.config --set-str LOCALVERSION "-gaea-R46"
 grep -E '^CONFIG_LOCALVERSION=' /root/kbuild/.config
 
 echo "== 构建 $GOAL =="
@@ -31,7 +32,7 @@ make O=/root/kbuild -j8 ARCH=arm64 \
      CLANG_TRIPLE=aarch64-linux-gnu- \
      CROSS_COMPILE=aarch64-linux-gnu- \
      HOSTCFLAGS="-fcommon" \
-     $GOAL 2>&1 | tail -5
+     $GOAL > /root/build-last.log 2>&1; tail -5 /root/build-last.log
 
 echo "== 产物 =="
 ls -l /root/kbuild/arch/arm64/boot/Image | awk '{print "Image:", $5}'
