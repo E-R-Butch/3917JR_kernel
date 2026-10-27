@@ -695,8 +695,21 @@ static int fts_input_report_a(struct fts_ts_data *data)
 static void fts_fod_key_report(struct fts_ts_data *data, const u8 *buf)
 {
 	static bool fod_pressed;
+	static bool diag_seen;
+	static bool diag_suspended;
+	static u8 diag_ev;
 	struct input_dev *input_dev = data->input_dev;
 	u8 ev = buf[FTS_TOUCH_FOD_POS];
+
+	/* Log state transitions, not every coordinate packet. */
+	if (!diag_seen || diag_ev != ev || diag_suspended != data->suspended) {
+		FTS_INFO("R45_FOD touch raw=0x%02x points=%u suspended=%d pressed=%d",
+			 ev, buf[FTS_TOUCH_POINT_NUM] & 0x0f,
+			 data->suspended, fod_pressed);
+		diag_seen = true;
+		diag_ev = ev;
+		diag_suspended = data->suspended;
+	}
 
 	if (ev == FTS_FOD_EVT_DOWN) {
 		if (fod_pressed)
@@ -706,14 +719,16 @@ static void fts_fod_key_report(struct fts_ts_data *data, const u8 *buf)
 		input_sync(input_dev);
 		input_report_key(input_dev, KEY_FOD_DOWN, 0);
 		input_sync(input_dev);
-		FTS_INFO("fod key: press (buf[1]=0x%02x)", ev);
+		FTS_INFO("R45_FOD touch key=%d raw=0x%02x suspended=%d",
+			 KEY_FOD_DOWN, ev, data->suspended);
 	} else if (ev == FTS_FOD_EVT_UP) {
 		fod_pressed = false;
 		input_report_key(input_dev, KEY_FOD_UP, 1);
 		input_sync(input_dev);
 		input_report_key(input_dev, KEY_FOD_UP, 0);
 		input_sync(input_dev);
-		FTS_INFO("fod key: release (buf[1]=0x%02x)", ev);
+		FTS_INFO("R45_FOD touch key=%d raw=0x%02x suspended=%d",
+			 KEY_FOD_UP, ev, data->suspended);
 	}
 }
 #endif

@@ -68,12 +68,12 @@
 #define GESTURE_Z                               0x41
 #define GESTURE_C                               0x34
 /*
- * 原厂 FOD 手势号（stock-Image fts_gesture_readdata 跳转表 index 84 / 39）：
- * 0x54 = FOD 按下（-> EV_KEY 508），0x27 = FOD 抬起（-> EV_KEY 509）。
- * 通用 FTS 表里 0x54 是字母 "V"，在这台机器上是 FOD，必须让位。
+ * Stock indexes its jump table with gesture_id - 0x20.
+ * Indices 0x54/0x27 therefore mean raw FOD IDs 0x74/0x47.
+ * Raw 0x54 remains the V gesture; raw 0x27 reports no key.
  */
-#define GESTURE_FOD_PRESS                       0x54
-#define GESTURE_FOD_RELEASE                     0x27
+#define GESTURE_FOD_PRESS                       0x74
+#define GESTURE_FOD_RELEASE                     0x47
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -216,8 +216,9 @@ static int fts_create_gesture_sysfs(struct device *dev)
 	return 0;
 }
 
-static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
+static void fts_gesture_report(struct fts_ts_data *ts_data, int gesture_id)
 {
+	struct input_dev *input_dev = ts_data->input_dev;
 	int gesture;
 
 	FTS_DEBUG("gesture_id:0x%x", gesture_id);
@@ -267,6 +268,10 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 		gesture = KEY_GESTURE_S;
 		break;
 
+	case GESTURE_V:
+		gesture = KEY_GESTURE_V;
+		break;
+
 	case GESTURE_FOD_PRESS:
 		gesture = KEY_FOD_DOWN;
 		break;
@@ -288,6 +293,9 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 		break;
 	}
 
+	/* One diagnostic per gesture, including unmapped raw IDs. */
+	FTS_INFO("R45_FOD gesture raw=0x%02x key=%d suspended=%d",
+		 gesture_id, gesture, ts_data->suspended);
 	/* report event key */
 	if (gesture != -1) {
 		FTS_DEBUG("Gesture Code=%d", gesture);
@@ -318,7 +326,6 @@ int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data)
 	int i = 0;
 	int index = 0;
 	u8 buf[FTS_GESTURE_DATA_LEN] = { 0 };
-	struct input_dev *input_dev = ts_data->input_dev;
 	struct fts_gesture_st *gesture = &fts_gesture_data;
 
 	if (!ts_data->suspended || !ts_data->gesture_mode) {
@@ -357,7 +364,7 @@ int fts_gesture_readdata(struct fts_ts_data *ts_data, u8 *data)
 	}
 
 	/* report gesture to OS */
-	fts_gesture_report(input_dev, gesture->gesture_id);
+	fts_gesture_report(ts_data, gesture->gesture_id);
 	return 0;
 }
 
