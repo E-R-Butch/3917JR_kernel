@@ -1,0 +1,6 @@
+id=vintf_sysvipc_fix
+name=3917JR VINTF: SysV IPC gate off
+version=1.0
+versionCode=1
+author=sinclair
+description=Drops the framework compatibility matrix requirement "CONFIG_SYSVIPC=n", which the self-built kernel violates because SYSVIPC=y is needed by Droidspaces. Stops the "device internal problem" dialog. Reversible: disable/remove this module. Regenerate tools/patch_vintf_matrix.py after changing ROM.
