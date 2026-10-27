@@ -314,6 +314,39 @@ static struct afe_clk_set mi2s_clk[MI2S_MAX] = {
 	},
 };
 
+
+/*
+ * 3917JR (gaea): SEC_MI2S drives the RT1011 speaker amplifier.
+ * MCLK2 (12.288 MHz) feeds the amp; the SEC MI2S I-bit clock runs at
+ * 3.072 MHz (OSR64) or 1.536 MHz (OSR32) depending on the OSR mode.
+ */
+static int gaea_sec_mi2s_osr_mode;
+static DEFINE_MUTEX(gaea_sec_mi2s_lock);
+static int gaea_sec_mi2s_users;
+
+static struct afe_clk_set gaea_sec_mi2s_osr = {
+	AFE_API_VERSION_I2S_CONFIG,
+	Q6AFE_LPASS_CLK_ID_MCLK_2,
+	Q6AFE_LPASS_OSR_CLK_12_P288_MHZ,
+	Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO,
+	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
+	0,
+};
+
+static struct afe_clk_set gaea_sec_mi2s_sclk = {
+	AFE_API_VERSION_I2S_CONFIG,
+	Q6AFE_LPASS_CLK_ID_SEC_MI2S_IBIT,
+	Q6AFE_LPASS_OSR_CLK_1_P536_MHZ,
+	Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO,
+	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
+	0,
+};
+
+static bool gaea_sec_mi2s_osr64(void)
+{
+	return gaea_sec_mi2s_osr_mode == 0x20 || gaea_sec_mi2s_osr_mode == 6;
+}
+
 struct mi2s_conf {
 	struct mutex lock;
 	u32 ref_cnt;
@@ -6715,6 +6748,140 @@ static struct snd_soc_dai_link ext_disp_be_dai_link[] = {
 	},
 };
 
+static int gaea_sec_mi2s_startup(struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_card *card = rtd->card;
+	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+	int port_id;
+
+	port_id = msm_get_port_id(rtd->dai_link->id);
+	if (port_id < 0 || substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return -EINVAL;
+
+	if (!q6core_is_adsp_ready())
+		return -EAGAIN;
+
+	mutex_lock(&gaea_sec_mi2s_lock);
+	if (gaea_sec_mi2s_users != 0) {
+		gaea_sec_mi2s_users++;
+		goto unlock;
+	}
+
+	gaea_sec_mi2s_osr.enable = 1;
+	ret = afe_set_lpass_clock_v2((u16)port_id, &gaea_sec_mi2s_osr);
+	if (ret < 0)
+		goto err_osr;
+
+	gaea_sec_mi2s_sclk.clk_freq_in_hz = gaea_sec_mi2s_osr64() ?
+			Q6AFE_LPASS_OSR_CLK_3_P072_MHZ :
+			Q6AFE_LPASS_OSR_CLK_1_P536_MHZ;
+	gaea_sec_mi2s_sclk.enable = 1;
+	ret = afe_set_lpass_clock_v2((u16)port_id, &gaea_sec_mi2s_sclk);
+	if (ret < 0)
+		goto err_sclk;
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0)
+		goto err_fmt;
+	ret = snd_soc_dai_set_fmt(codec_dai,
+			SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S);
+	if (ret < 0)
+		goto err_fmt;
+
+	if (pdata->mi2s_gpio_p[SEC_MI2S]) {
+		ret = msm_cdc_pinctrl_select_active_state(
+				pdata->mi2s_gpio_p[SEC_MI2S]);
+		if (ret < 0) {
+			pr_err("%s: SEC MI2S pinctrl active failed %d\n",
+				__func__, ret);
+			msm_cdc_pinctrl_select_sleep_state(
+					pdata->mi2s_gpio_p[SEC_MI2S]);
+			goto err_fmt;
+		}
+	}
+
+	gaea_sec_mi2s_users = 1;
+	goto unlock;
+
+err_fmt:
+	gaea_sec_mi2s_sclk.enable = 0;
+	afe_set_lpass_clock_v2((u16)port_id, &gaea_sec_mi2s_sclk);
+err_sclk:
+	gaea_sec_mi2s_sclk.enable = 0;
+	gaea_sec_mi2s_osr.enable = 0;
+	afe_set_lpass_clock_v2((u16)port_id, &gaea_sec_mi2s_osr);
+err_osr:
+	gaea_sec_mi2s_osr.enable = 0;
+unlock:
+	mutex_unlock(&gaea_sec_mi2s_lock);
+	return ret;
+}
+
+static void gaea_sec_mi2s_shutdown(struct snd_pcm_substream *substream)
+{
+	int ret;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+	int port_id;
+
+	port_id = msm_get_port_id(rtd->dai_link->id);
+	if (port_id < 0 || substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
+		return;
+
+	mutex_lock(&gaea_sec_mi2s_lock);
+	if (gaea_sec_mi2s_users == 0 ||
+	    --gaea_sec_mi2s_users != 0)
+		goto unlock;
+
+	gaea_sec_mi2s_sclk.enable = 0;
+	ret = afe_set_lpass_clock_v2((u16)port_id, &gaea_sec_mi2s_sclk);
+	if (ret < 0)
+		dev_err(card->dev, "SEC MI2S bit clock stop failed: %d\n", ret);
+
+	gaea_sec_mi2s_osr.enable = 0;
+	ret = afe_set_lpass_clock_v2((u16)port_id, &gaea_sec_mi2s_osr);
+	if (ret < 0)
+		dev_err(card->dev, "SEC MI2S OSR clock stop failed: %d\n", ret);
+
+	if (pdata->mi2s_gpio_p[SEC_MI2S]) {
+		ret = msm_cdc_pinctrl_select_sleep_state(
+				pdata->mi2s_gpio_p[SEC_MI2S]);
+		if (ret < 0)
+			dev_err(card->dev, "SEC MI2S pin sleep failed: %d\n",
+				ret);
+	}
+unlock:
+	mutex_unlock(&gaea_sec_mi2s_lock);
+}
+
+static int gaea_rt1011_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	int rate = params_rate(params);
+	unsigned int mclk = rate << 8;
+	int osr_mult = gaea_sec_mi2s_osr64() ? 64 : 32;
+	int ret;
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, 2, mclk, 0);
+	if (ret < 0)
+		return ret;
+
+	return snd_soc_dai_set_pll(codec_dai, 0, 0, osr_mult * rate, mclk);
+}
+
+static struct snd_soc_ops gaea_sec_mi2s_be_ops = {
+	.startup = gaea_sec_mi2s_startup,
+	.shutdown = gaea_sec_mi2s_shutdown,
+	.hw_params = gaea_rt1011_hw_params,
+};
+
 static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 	{
 		.name = LPASS_BE_PRI_MI2S_RX,
@@ -6750,13 +6917,13 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Secondary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.1",
 		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
+		.codec_name = "rt1011.2-0039",
+		.codec_dai_name = "rt1011-aif",
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm_mi2s_be_ops,
+		.ops = &gaea_sec_mi2s_be_ops,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 	},

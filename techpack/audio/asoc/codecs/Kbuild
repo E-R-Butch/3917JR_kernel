@@ -261,5 +261,9 @@ mbhc_dlkm-y := $(MBHC_OBJS)
 obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) += hdmi_dlkm.o
 hdmi_dlkm-y := $(HDMICODEC_OBJS)
 
+# 3917JR: Realtek RT1011 speaker amplifier (SEC_MI2S_RX)
+obj-$(CONFIG_SND_SOC_RT1011) += rt1011_dlkm.o
+rt1011_dlkm-y := rt1011/rt1011.o rt1011/rl6231.o
+
 # inject some build related information
 DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
