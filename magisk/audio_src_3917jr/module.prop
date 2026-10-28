@@ -1,0 +1,6 @@
+id=audio_src_3917jr
+name=3917JR audio stack (built from CLO source, loaded from /data)
+version=1.0
+versionCode=1
+author=sinclair
+description=Audio DLKMs compiled from LA.UM.8.12.3.1 with the GAEA RT1011 codec and SEC-MI2S machine hooks. Loaded with insmod from /data, no /vendor overlay.
