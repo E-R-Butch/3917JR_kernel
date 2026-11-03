@@ -6081,6 +6081,29 @@ static int __init init_binder_device(const char *name)
 	return ret;
 }
 
+
+/**
+ * binder_get_device_dev() - 取某个 binder misc 设备的 dev_t
+ * @name: "binder" / "hwbinder" / "vndbinder"
+ *
+ * binderfs 兼容层用它把已有的 binder 设备挂成字符节点。
+ */
+dev_t binder_get_device_dev(const char *name)
+{
+	struct binder_device *device;
+	dev_t ret = 0;
+
+	hlist_for_each_entry(device, &binder_devices, hlist) {
+		if (!strcmp(device->miscdev.name, name)) {
+			ret = MKDEV(MISC_MAJOR, device->miscdev.minor);
+			break;
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(binder_get_device_dev);
+
 static int __init binder_init(void)
 {
 	int ret;

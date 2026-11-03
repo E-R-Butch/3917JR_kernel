@@ -42,6 +42,17 @@ config ANDROID_BINDER_IPC_SELFTEST
 	  exhaustively with combinations of various buffer sizes and
 	  alignments.
 
+config ANDROID_BINDERFS
+	bool "Android Binderfs filesystem"
+	depends on ANDROID_BINDER_IPC
+	default y
+	help
+	  Mount -t binder, republishing the binder devices registered by the
+	  driver (binder, hwbinder, vndbinder) as character nodes.  Android 11+
+	  init mounts this filesystem during early-init; without it the init.rc
+	  symlinks leave /dev/binder dangling and the system cannot bring up
+	  servicemanager or zygote.
+
 endif # if ANDROID
 
 endmenu

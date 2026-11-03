@@ -1312,3 +1312,8 @@ config SND_SOC_TPA6130A2
 	depends on I2C
 
 endmenu
+
+config SND_SOC_RT1011
+	tristate "Realtek RT1011 CODEC"
+	depends on I2C
+	select REGMAP_I2C
